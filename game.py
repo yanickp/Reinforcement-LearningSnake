@@ -5,24 +5,22 @@ import numpy as np
 from Qlearning_agent_vanilla import Agent_valilla
 from Direction import Direction, Point
 
-
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
-#font = pygame.font.SysFont('arial', 25)
-
-
-
+# font = pygame.font.SysFont('arial', 25)
 
 
 # rgb colors
 WHITE = (255, 255, 255)
-RED = (200,0,0)
+RED = (200, 0, 0)
 BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
-BLACK = (0,0,0)
+BLACK = (0, 0, 0)
 
 BLOCK_SIZE = 20
-SPEED = 40
+
+
+# SPEED = 4000
 
 class SnakeGameAI:
 
@@ -34,11 +32,12 @@ class SnakeGameAI:
         pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
         self.timesReset = 0
+        self.foodAge = 0
+        self.speed = 4000
 
         self.agents = []
 
         self.reset()
-
 
     def reset(self):
         # init game state
@@ -55,9 +54,9 @@ class SnakeGameAI:
 
         self.food = None
         self.timesReset += 1
+
         self._place_food()
         self.frame_iteration = 0
-
 
     def _place_food(self):
         centerX = self.w // 2
@@ -86,6 +85,7 @@ class SnakeGameAI:
         # print("food at: ", x, y)
 
         self.food = Point(x, y)
+        self.foodAge = 0
 
         # if food is in any of the snakes
         for agent in self.agents:
@@ -94,23 +94,29 @@ class SnakeGameAI:
         # if self.food in self.snake:
         #     self._place_food()
 
-
     def play_step(self, action, agent):
         self.frame_iteration += 1
+        self.foodAge += 1
+        agent.TimeNotEaten += 1
+
+        if agent.TimeNotEaten > 100 * len(agent.snake):
+            print("Agent " + str(agent.name) + " died of starvation")
+            return -10, True, agent.score
+
         # 1. collect user input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-        
+
         # 2. move
-        agent._move(action) # update the head
+        agent._move(action)  # update the head
         agent.snake.insert(0, agent.head)
-        
+        agent.TimeNotEaten += 1
         # 3. check if game over
         reward = 0
         game_over = False
-        if agent.is_collision() or self.frame_iteration > 100*len(agent.snake):
+        if agent.is_collision():
             game_over = True
             reward = -10
             return reward, game_over, agent.score
@@ -118,33 +124,34 @@ class SnakeGameAI:
         # 4. place new food or just move
         if agent.head == self.food:
             agent.score += 1
+            agent.TimeNotEaten = 0
             reward = 10
             self._place_food()
         else:
             # reward = -(self._distance_to_food() / 10)
             agent.snake.pop()
-        
+
         # 5. update ui and clock
         self._update_ui()
-        self.clock.tick(SPEED)
+        if self.timesReset > 5000:
+            self.clock.tick(50)
+        else:
+            self.clock.tick(self.speed)
         # 6. return game over and score
         return reward, game_over, agent.score
-
-
-
-
-
 
     def _update_ui(self):
         self.display.fill(BLACK)
 
         for index, agent in enumerate(self.agents):
             for pt in agent.snake:
-                pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
-                pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
+                pygame.draw.rect(self.display, agent.color, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
+                pygame.draw.rect(self.display, agent.accent_color, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
 
-            text = font.render(str(agent.name) + "'s score: " + str(agent.score), True, WHITE)
-            self.display.blit(text, [0, 20*index])
+            text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " avg: " + str(round(agent.total_score / max(agent.n_games, 1), 2)), True, WHITE)
+
+            self.display.blit(text, [0, 20 * (index + 1)])
+        self.display.blit(font.render("game: " + str(self.timesReset), True, WHITE), [0, 0])
 
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
         # pygame.draw.line(self.display, RED, (self.head.x, self.head.y), (self.food.x, self.food.y), 2)
@@ -152,68 +159,45 @@ class SnakeGameAI:
 
         pygame.display.flip()
 
+    def printScores(self):
+        for agent in self.agents:
+            print("Agent " + str(agent.name) + " score: " + str(agent.score) + " record: " + str(
+                agent.record) + " avg: " + str(agent.total_score / agent.n_games))
 
+    def addAgent(self, name):
+        self.agents.append(Agent_valilla(self.w, self.h, BLOCK_SIZE, name))
 
+    def addAgents(self, amount):
+        for i in range(amount):
+            self.agents.append(Agent_valilla(self.w, self.h, BLOCK_SIZE, str("agent" + str(i))))
 
-    # def getState(self):
-    #     head = self.snake[0]
-    #     point_l = Point(head.x - 20, head.y)
-    #     point_r = Point(head.x + 20, head.y)
-    #     point_u = Point(head.x, head.y - 20)
-    #     point_d = Point(head.x, head.y + 20)
-    #
-    #     dir_l = self.direction == Direction.LEFT
-    #     dir_r = self.direction == Direction.RIGHT
-    #     dir_u = self.direction == Direction.UP
-    #     dir_d = self.direction == Direction.DOWN
-    #
-    #     state = [
-    #         # Danger straight
-    #         (dir_r and self.is_collision(point_r)) or
-    #         (dir_l and self.is_collision(point_l)) or
-    #         (dir_u and self.is_collision(point_u)) or
-    #         (dir_d and self.is_collision(point_d)),
-    #
-    #         # Danger right
-    #         (dir_u and self.is_collision(point_r)) or
-    #         (dir_d and self.is_collision(point_l)) or
-    #         (dir_l and self.is_collision(point_u)) or
-    #         (dir_r and self.is_collision(point_d)),
-    #
-    #         # Danger left
-    #         (dir_d and self.is_collision(point_r)) or
-    #         (dir_u and self.is_collision(point_l)) or
-    #         (dir_r and self.is_collision(point_u)) or
-    #         (dir_l and self.is_collision(point_d)),
-    #
-    #         # Move direction
-    #         dir_l,
-    #         dir_r,
-    #         dir_u,
-    #         dir_d,
-    #
-    #         # Food location
-    #         self.food.x < self.head.x,  # food left
-    #         self.food.x > self.head.x,  # food right
-    #         self.food.y < self.head.y,  # food up
-    #         self.food.y > self.head.y  # food down
-    #     ]
-    #
-    #     return np.array(state, dtype=int)
 
 if __name__ == '__main__':
     game = SnakeGameAI()
-    game.agents = [Agent_valilla(game.w, game.h, BLOCK_SIZE), Agent_valilla(game.w, game.h, BLOCK_SIZE)]
+    gameoverCount = 0
+    # game.addAgent("Agent 1")
+    # game.addAgent("Agent 2")
+    game.addAgents(10)
     while True:
+        gameoverCount = 0
+        game._update_ui()
         for agent in game.agents:
-            state = agent.get_state(game.food)
-            action = agent.get_action(state)
-            reward, game_over, score = game.play_step(action, agent)
-            nextState = agent.get_state(game.food)
-            agent.train(state, action, reward, nextState, game_over, score)
-            if game_over:
+            if not agent.isDead:
+                state = agent.get_state(game.food)
+                action = agent.get_action(state)
+                reward, game_over, score = game.play_step(action, agent)
+                nextState = agent.get_state(game.food)
+                agent.train(state, action, reward, nextState, game_over, score)
+                if game_over:
+                    gameoverCount += 1
+            else:
+                gameoverCount += 1
+
+            if gameoverCount >= len(game.agents):
+                game.printScores()
+                gameoverCount = 0
                 game.reset()
-            game._update_ui()
+
 
 # todo 1: make 2 snakes play against each other
 # todo 2: make 2 snakes play against each other with different brains

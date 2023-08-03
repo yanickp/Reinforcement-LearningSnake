@@ -2,22 +2,29 @@ import random
 import numpy as np
 from Direction import Direction, Point
 import threading
+from helper import tint_color
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
 LR = 0.001
 
+
 class Agent_valilla:
 
     def __init__(self, board_width, board_height, block_size, name="vanilla"):
-        self.n_games = 0 # amount of games played
+        self.n_games = 0  # amount of games played
         self.q_table = {}
-        self.epsilon = 0 # randomness
-        self.record = 0 # highest score
-        self.total_score = 0 # overall score
-        self.score = 0 # per game
+        self.epsilon = 0  # randomness
+        self.record = 0  # highest score
+        self.total_score = 0  # overall score
+        self.score = 0  # per game
 
         self.name = name
+        self.isDead = False
+        self.TimeNotEaten = 0
+
+        self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        self.accent_color = tint_color(self.color, 50) # tint by 50 for accent color
 
         self.board_width = board_width
         self.board_height = board_height
@@ -26,11 +33,10 @@ class Agent_valilla:
         # inittialize the snake
         self.direction = Direction.RIGHT
 
-        self.head = Point(self.board_width/2, self.board_height/2)
+        self.head = Point(self.board_width / 2, self.board_height / 2)
         self.snake = [self.head,
                       Point(self.head.x - self.BLOCK_SIZE, self.head.y),
                       Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
-
 
     def _get_q_value(self, state, action):
         # Get the Q-value for a specific state-action pair from the Q-table
@@ -49,16 +55,17 @@ class Agent_valilla:
         action_index = np.argmax(action)
         self.q_table[state][action_index] = new_q_value
 
-
     def reset(self):
         self.direction = Direction.RIGHT
-
-        self.head = Point(self.board_width/2, self.board_height/2)
+        self.isDead = False
+        self.TimeNotEaten = 0
+        self.head = Point(self.board_width / 2, self.board_height / 2)
         self.snake = [self.head,
                       Point(self.head.x - self.BLOCK_SIZE, self.head.y),
                       Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
 
         self.score = 0
+
     def get_state(self, food):
         head = self.snake[0]
         point_l = Point(head.x - 20, head.y)
@@ -101,7 +108,7 @@ class Agent_valilla:
             food.x > self.head.x,  # food right
             food.y < self.head.y,  # food up
             food.y > self.head.y  # food down
-            ]
+        ]
 
         return np.array(state, dtype=int)
 
@@ -117,10 +124,9 @@ class Agent_valilla:
 
         return False
 
-
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 100 - self.n_games
+        self.epsilon = 200 - self.n_games
         if random.randint(0, 200) < self.epsilon:
             move = random.randint(0, 2)
         else:
@@ -130,72 +136,58 @@ class Agent_valilla:
         action_vector[move] = 1
         return action_vector
 
-
     def _move(self, action):
         # [straight, right, left]
+        if not self.isDead:
+            clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
+            idx = clock_wise.index(self.direction)
 
-        clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
-        idx = clock_wise.index(self.direction)
+            if np.array_equal(action, [1, 0, 0]):
+                new_dir = clock_wise[idx]  # no change
+            elif np.array_equal(action, [0, 1, 0]):
+                next_idx = (idx + 1) % 4
+                new_dir = clock_wise[next_idx]  # right turn r -> d -> l -> u
+            else:  # [0, 0, 1]
+                next_idx = (idx - 1) % 4
+                new_dir = clock_wise[next_idx]  # left turn r -> u -> l -> d
 
-        if np.array_equal(action, [1, 0, 0]):
-            new_dir = clock_wise[idx] # no change
-        elif np.array_equal(action, [0, 1, 0]):
-            next_idx = (idx + 1) % 4
-            new_dir = clock_wise[next_idx] # right turn r -> d -> l -> u
-        else: # [0, 0, 1]
-            next_idx = (idx - 1) % 4
-            new_dir = clock_wise[next_idx] # left turn r -> u -> l -> d
+            self.direction = new_dir
 
-        self.direction = new_dir
+            x = self.head.x
+            y = self.head.y
+            if self.direction == Direction.RIGHT:
+                x += self.BLOCK_SIZE
+            elif self.direction == Direction.LEFT:
+                x -= self.BLOCK_SIZE
+            elif self.direction == Direction.DOWN:
+                y += self.BLOCK_SIZE
+            elif self.direction == Direction.UP:
+                y -= self.BLOCK_SIZE
 
-        x = self.head.x
-        y = self.head.y
-        if self.direction == Direction.RIGHT:
-            x += self.BLOCK_SIZE
-        elif self.direction == Direction.LEFT:
-            x -= self.BLOCK_SIZE
-        elif self.direction == Direction.DOWN:
-            y += self.BLOCK_SIZE
-        elif self.direction == Direction.UP:
-            y -= self.BLOCK_SIZE
-
-        self.head = Point(x, y)
+            self.head = Point(x, y)
 
     def train(self, state, action, reward, next_state, done, score):
-        plot_scores = []
-        plot_mean_scores = []
-        record = 0
-        # agent = Agent()
-        # game = SnakeGameAI()
-        # while True:
-            # Q-learning update rule
-            # state = self.get_state(game)
-        state = tuple(state)
-        #
-        # action = self.get_action(state)
-        # reward, done, score = game.play_step(action)
-        # next_state = self.get_state(game)
+        if not self.isDead: # If the snake is dead, there is no need to train the Q-table
+            state = tuple(state)
+            next_state = tuple(next_state)
 
-        next_state = tuple(next_state)
-
-        current_q = self._get_q_value(state, action)
-        max_next_q = max(self.q_table.get(next_state, [0, 0, 0])) # [0,0,0] is the default value if next_state is not in the Q-table
-        new_q = current_q + 0.1 * (
+            current_q = self._get_q_value(state, action)
+            max_next_q = max(
+                self.q_table.get(next_state, [0, 0, 0]))  # [0,0,0] is the default value if next_state is not in the Q-table
+            new_q = current_q + 0.1 * (
                     reward + 0.99 * max_next_q - current_q)  # Learning rate = 0.1, discount factor = 0.99
-        self._update_q_value(state, action, new_q)
-
+            self._update_q_value(state, action, new_q)
 
         if done:
             if score > self.record:
                 self.record = score
 
             # game.reset()
+            self.isDead = True
             self.n_games += 1
-            if self.n_games > 10:
-                print('')
             self.total_score += score
             mean_score = self.total_score / self.n_games
-            print('Game', self.n_games, 'Score', score, 'Record:', self.record, 'Mean Score:', mean_score)
+            # print(str(self.name) + 's Game', self.n_games, 'Score', score, 'Record:', self.record, 'Mean Score:', mean_score)
 
 
 if __name__ == '__main__':
