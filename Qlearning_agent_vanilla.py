@@ -1,9 +1,6 @@
 import random
 import numpy as np
-# from collections import deque
-# from game import SnakeGameAI, Direction, Point
-# from model import Linear_QNet, QTrainer
-# from helper import plot
+from Direction import Direction, Point
 import threading
 
 MAX_MEMORY = 100_000
@@ -12,12 +9,28 @@ LR = 0.001
 
 class Agent_valilla:
 
-    def __init__(self):
-        self.n_games = 0
+    def __init__(self, board_width, board_height, block_size, name="vanilla"):
+        self.n_games = 0 # amount of games played
         self.q_table = {}
         self.epsilon = 0 # randomness
-        self.record = 0
-        self.total_score = 0
+        self.record = 0 # highest score
+        self.total_score = 0 # overall score
+        self.score = 0 # per game
+
+        self.name = name
+
+        self.board_width = board_width
+        self.board_height = board_height
+        self.BLOCK_SIZE = block_size
+
+        # inittialize the snake
+        self.direction = Direction.RIGHT
+
+        self.head = Point(self.board_width/2, self.board_height/2)
+        self.snake = [self.head,
+                      Point(self.head.x - self.BLOCK_SIZE, self.head.y),
+                      Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
+
 
     def _get_q_value(self, state, action):
         # Get the Q-value for a specific state-action pair from the Q-table
@@ -37,51 +50,72 @@ class Agent_valilla:
         self.q_table[state][action_index] = new_q_value
 
 
-    # def get_state(self, game):
-    #     head = game.snake[0]
-    #     point_l = Point(head.x - 20, head.y)
-    #     point_r = Point(head.x + 20, head.y)
-    #     point_u = Point(head.x, head.y - 20)
-    #     point_d = Point(head.x, head.y + 20)
-    #
-    #     dir_l = game.direction == Direction.LEFT
-    #     dir_r = game.direction == Direction.RIGHT
-    #     dir_u = game.direction == Direction.UP
-    #     dir_d = game.direction == Direction.DOWN
-    #
-    #     state = [
-    #         # Danger straight
-    #         (dir_r and game.is_collision(point_r)) or
-    #         (dir_l and game.is_collision(point_l)) or
-    #         (dir_u and game.is_collision(point_u)) or
-    #         (dir_d and game.is_collision(point_d)),
-    #
-    #         # Danger right
-    #         (dir_u and game.is_collision(point_r)) or
-    #         (dir_d and game.is_collision(point_l)) or
-    #         (dir_l and game.is_collision(point_u)) or
-    #         (dir_r and game.is_collision(point_d)),
-    #
-    #         # Danger left
-    #         (dir_d and game.is_collision(point_r)) or
-    #         (dir_u and game.is_collision(point_l)) or
-    #         (dir_r and game.is_collision(point_u)) or
-    #         (dir_l and game.is_collision(point_d)),
-    #
-    #         # Move direction
-    #         dir_l,
-    #         dir_r,
-    #         dir_u,
-    #         dir_d,
-    #
-    #         # Food location
-    #         game.food.x < game.head.x,  # food left
-    #         game.food.x > game.head.x,  # food right
-    #         game.food.y < game.head.y,  # food up
-    #         game.food.y > game.head.y  # food down
-    #         ]
-    #
-    #     return np.array(state, dtype=int)
+    def reset(self):
+        self.direction = Direction.RIGHT
+
+        self.head = Point(self.board_width/2, self.board_height/2)
+        self.snake = [self.head,
+                      Point(self.head.x - self.BLOCK_SIZE, self.head.y),
+                      Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
+
+        self.score = 0
+    def get_state(self, food):
+        head = self.snake[0]
+        point_l = Point(head.x - 20, head.y)
+        point_r = Point(head.x + 20, head.y)
+        point_u = Point(head.x, head.y - 20)
+        point_d = Point(head.x, head.y + 20)
+
+        dir_l = self.direction == Direction.LEFT
+        dir_r = self.direction == Direction.RIGHT
+        dir_u = self.direction == Direction.UP
+        dir_d = self.direction == Direction.DOWN
+
+        state = [
+            # Danger straight
+            (dir_r and self.is_collision(point_r)) or
+            (dir_l and self.is_collision(point_l)) or
+            (dir_u and self.is_collision(point_u)) or
+            (dir_d and self.is_collision(point_d)),
+
+            # Danger right
+            (dir_u and self.is_collision(point_r)) or
+            (dir_d and self.is_collision(point_l)) or
+            (dir_l and self.is_collision(point_u)) or
+            (dir_r and self.is_collision(point_d)),
+
+            # Danger left
+            (dir_d and self.is_collision(point_r)) or
+            (dir_u and self.is_collision(point_l)) or
+            (dir_r and self.is_collision(point_u)) or
+            (dir_l and self.is_collision(point_d)),
+
+            # Move direction
+            dir_l,
+            dir_r,
+            dir_u,
+            dir_d,
+
+            # Food location
+            food.x < self.head.x,  # food left
+            food.x > self.head.x,  # food right
+            food.y < self.head.y,  # food up
+            food.y > self.head.y  # food down
+            ]
+
+        return np.array(state, dtype=int)
+
+    def is_collision(self, pt=None):
+        if pt is None:
+            pt = self.head
+        # hits boundary
+        if pt.x > self.board_width - self.BLOCK_SIZE or pt.x < 0 or pt.y > self.board_height - self.BLOCK_SIZE or pt.y < 0:
+            return True
+        # hits itself
+        if pt in self.snake[1:]:
+            return True
+
+        return False
 
 
     def get_action(self, state):
@@ -96,6 +130,36 @@ class Agent_valilla:
         action_vector[move] = 1
         return action_vector
 
+
+    def _move(self, action):
+        # [straight, right, left]
+
+        clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
+        idx = clock_wise.index(self.direction)
+
+        if np.array_equal(action, [1, 0, 0]):
+            new_dir = clock_wise[idx] # no change
+        elif np.array_equal(action, [0, 1, 0]):
+            next_idx = (idx + 1) % 4
+            new_dir = clock_wise[next_idx] # right turn r -> d -> l -> u
+        else: # [0, 0, 1]
+            next_idx = (idx - 1) % 4
+            new_dir = clock_wise[next_idx] # left turn r -> u -> l -> d
+
+        self.direction = new_dir
+
+        x = self.head.x
+        y = self.head.y
+        if self.direction == Direction.RIGHT:
+            x += self.BLOCK_SIZE
+        elif self.direction == Direction.LEFT:
+            x -= self.BLOCK_SIZE
+        elif self.direction == Direction.DOWN:
+            y += self.BLOCK_SIZE
+        elif self.direction == Direction.UP:
+            y -= self.BLOCK_SIZE
+
+        self.head = Point(x, y)
 
     def train(self, state, action, reward, next_state, done, score):
         plot_scores = []
