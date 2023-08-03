@@ -3,10 +3,13 @@ import random
 from collections import namedtuple
 import numpy as np
 from Qlearning_agent_vanilla import Agent_valilla
+from Qlearning_agent import Agent
 from Direction import Direction, Point
+import pickle
+
 
 pygame.init()
-font = pygame.font.Font('arial.ttf', 25)
+font = pygame.font.Font('arial.ttf', 18)
 # font = pygame.font.SysFont('arial', 25)
 
 
@@ -33,7 +36,7 @@ class SnakeGameAI:
         self.clock = pygame.time.Clock()
         self.timesReset = 0
         self.foodAge = 0
-        self.speed = 4000
+        self.speed = 80000000
 
         self.agents = []
 
@@ -62,7 +65,7 @@ class SnakeGameAI:
         centerX = self.w // 2
         centerY = self.h // 2
 
-        if self.timesReset < 150:
+        if self.timesReset < 300:
             # Calculate the offset based on the number of times reset
             offset_blocks = self.timesReset // 15
 
@@ -99,8 +102,8 @@ class SnakeGameAI:
         self.foodAge += 1
         agent.TimeNotEaten += 1
 
-        if agent.TimeNotEaten > 100 * len(agent.snake):
-            print("Agent " + str(agent.name) + " died of starvation")
+        if agent.TimeNotEaten > 100 * len(agent.snake):# and self.timesReset < 300:
+            # print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
         # 1. collect user input
@@ -133,10 +136,10 @@ class SnakeGameAI:
 
         # 5. update ui and clock
         self._update_ui()
-        if self.timesReset > 5000:
-            self.clock.tick(50)
-        else:
-            self.clock.tick(self.speed)
+        # if self.timesReset > 100:
+        #     self.clock.tick(50)
+        # else:
+        self.clock.tick(self.speed)
         # 6. return game over and score
         return reward, game_over, agent.score
 
@@ -148,7 +151,7 @@ class SnakeGameAI:
                 pygame.draw.rect(self.display, agent.color, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
                 pygame.draw.rect(self.display, agent.accent_color, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
 
-            text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " avg: " + str(round(agent.total_score / max(agent.n_games, 1), 2)), True, WHITE)
+            text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " avg: " + str(round(agent.total_score / max(agent.n_games, 1), 2)) + " hs: " + str(agent.record), True, agent.color)
 
             self.display.blit(text, [0, 20 * (index + 1)])
         self.display.blit(font.render("game: " + str(self.timesReset), True, WHITE), [0, 0])
@@ -168,17 +171,30 @@ class SnakeGameAI:
         self.agents.append(Agent_valilla(self.w, self.h, BLOCK_SIZE, name))
 
     def addAgents(self, amount):
-        for i in range(amount):
+        for i in range(len(self.agents), len(self.agents) + amount, 1):
             self.agents.append(Agent_valilla(self.w, self.h, BLOCK_SIZE, str("agent" + str(i))))
+
+    def addDeepQagent(self, name, layers=[256]):
+        self.agents.append(Agent(self.w, self.h, BLOCK_SIZE, name=name, layers=layers))
 
 
 if __name__ == '__main__':
-    game = SnakeGameAI()
+    game = SnakeGameAI(w=1000, h=1000)
     gameoverCount = 0
-    # game.addAgent("Agent 1")
-    # game.addAgent("Agent 2")
-    game.addAgents(10)
+    # game.addAgent("masterBrain")
+    # game.agents[0].loadBrain("model/q_learning.pkl")
+    game.addDeepQagent("deepQ 255")
+    game.addDeepQagent("deepQ 128", layers=[128])
+    game.addDeepQagent("deepQ 64", layers=[64])
+
     while True:
+        # if game.timesReset == 500:
+        #     game.printScores()
+        #     # save dictionary to person_data.pkl file
+        #     with open('model/brain.pkl', 'wb') as fp:
+        #         pickle.dump(game.agents[0].q_table, fp)
+        #         print('dictionary saved successfully to file')
+        #     break
         gameoverCount = 0
         game._update_ui()
         for agent in game.agents:
@@ -194,7 +210,7 @@ if __name__ == '__main__':
                 gameoverCount += 1
 
             if gameoverCount >= len(game.agents):
-                game.printScores()
+                # game.printScores()
                 gameoverCount = 0
                 game.reset()
 

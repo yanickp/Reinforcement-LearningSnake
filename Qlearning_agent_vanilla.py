@@ -1,3 +1,4 @@
+import pickle
 import random
 import numpy as np
 from Direction import Direction, Point
@@ -23,8 +24,10 @@ class Agent_valilla:
         self.isDead = False
         self.TimeNotEaten = 0
 
+        self.loadedModel = False
+
         self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        self.accent_color = tint_color(self.color, 50) # tint by 50 for accent color
+        self.accent_color = tint_color(self.color, 50)  # tint by 50 for accent color
 
         self.board_width = board_width
         self.board_height = board_height
@@ -126,8 +129,9 @@ class Agent_valilla:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 200 - self.n_games
-        if random.randint(0, 200) < self.epsilon:
+        self.epsilon = 1000 - self.n_games
+        change = random.randint(0, 500)
+        if change < self.epsilon and not self.loadedModel: #or change < 5:
             move = random.randint(0, 2)
         else:
             state = tuple(state)
@@ -136,6 +140,10 @@ class Agent_valilla:
         action_vector[move] = 1
         return action_vector
 
+    def loadBrain(self, filename):
+        with open(filename, 'rb') as brain:
+            self.q_table = pickle.load(brain)
+        self.loadedModel = True
     def _move(self, action):
         # [straight, right, left]
         if not self.isDead:
@@ -167,13 +175,14 @@ class Agent_valilla:
             self.head = Point(x, y)
 
     def train(self, state, action, reward, next_state, done, score):
-        if not self.isDead: # If the snake is dead, there is no need to train the Q-table
+        if not self.isDead:  # If the snake is dead, there is no need to train the Q-table
             state = tuple(state)
             next_state = tuple(next_state)
 
             current_q = self._get_q_value(state, action)
             max_next_q = max(
-                self.q_table.get(next_state, [0, 0, 0]))  # [0,0,0] is the default value if next_state is not in the Q-table
+                self.q_table.get(next_state,
+                                 [0, 0, 0]))  # [0,0,0] is the default value if next_state is not in the Q-table
             new_q = current_q + 0.1 * (
                     reward + 0.99 * max_next_q - current_q)  # Learning rate = 0.1, discount factor = 0.99
             self._update_q_value(state, action, new_q)
