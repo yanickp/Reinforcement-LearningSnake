@@ -30,6 +30,9 @@ class Agent:
         self.record = 0
         self.total_score = 0
 
+        self.scores = []
+        self.mean_scores = []
+
         self.loadedModel = False
 
         self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
@@ -49,7 +52,6 @@ class Agent:
 
 
     def loadBrain(self, path):
-        self.model = Linear_QNet(11, self.layers, 3)
         self.model.load_state_dict(torch.load(path))
     def reset(self):
         self.direction = Direction.RIGHT
@@ -169,7 +171,7 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 80 - self.n_games
+        self.epsilon = 200 - self.n_games
         final_move = [0, 0, 0]
         if random.randint(0, 200) < self.epsilon:
             move = random.randint(0, 2)
@@ -208,10 +210,11 @@ class Agent:
                 self.n_games += 1
                 self.isDead = True
                 self.train_long_memory()
-
+                self.scores.append(score)
+                self.mean_scores.append(np.mean(self.scores[-10:]))
                 if score > self.record:
                     self.record = score
-                    self.model.save()
+                    self.model.save(file_name='deepQ128128.pth')
 
                 # plot_scores.append(score)
                 self.total_score += score

@@ -2,6 +2,8 @@ import pygame
 import random
 from collections import namedtuple
 import numpy as np
+
+import helper
 from Qlearning_agent_vanilla import Agent_valilla
 from Qlearning_agent import Agent
 from Direction import Direction, Point
@@ -36,22 +38,13 @@ class SnakeGameAI:
         self.clock = pygame.time.Clock()
         self.timesReset = 0
         self.foodAge = 0
-        self.speed = 80000000
+        self.speed = 80000
 
         self.agents = []
 
         self.reset()
 
     def reset(self):
-        # init game state
-        # self.direction = Direction.RIGHT
-        #
-        # self.head = Point(self.w/2, self.h/2)
-        # self.snake = [self.head,
-        #               Point(self.head.x-BLOCK_SIZE, self.head.y),
-        #               Point(self.head.x-(2*BLOCK_SIZE), self.head.y)]
-
-        # self.score = 0
         for agent in self.agents:
             agent.reset()
 
@@ -65,9 +58,9 @@ class SnakeGameAI:
         centerX = self.w // 2
         centerY = self.h // 2
 
-        if self.timesReset < 30:
+        if self.timesReset < 300:
             # Calculate the offset based on the number of times reset
-            offset_blocks = self.timesReset // 15
+            offset_blocks = self.timesReset // 20
 
             # Limit the offset to 3 blocks initially and increase it by 1 block every 20 times reset
             offset_blocks = max(offset_blocks, 3)
@@ -102,8 +95,8 @@ class SnakeGameAI:
         self.foodAge += 1
         agent.TimeNotEaten += 1
 
-        if agent.TimeNotEaten > 100 * len(agent.snake):# and self.timesReset < 300:
-            # print("Agent " + str(agent.name) + " died of starvation")
+        if agent.TimeNotEaten > 100 * len(agent.snake) and self.timesReset < 300:
+            print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
         # 1. collect user input
@@ -174,18 +167,19 @@ class SnakeGameAI:
         for i in range(len(self.agents), len(self.agents) + amount, 1):
             self.agents.append(Agent_valilla(self.w, self.h, BLOCK_SIZE, str("agent" + str(i))))
 
-    def addDeepQagent(self, name, layers=[256]):
+    def addDeepQagent(self, name, layers=[128, 128]):
         self.agents.append(Agent(self.w, self.h, BLOCK_SIZE, name=name, layers=layers))
 
 
 if __name__ == '__main__':
     game = SnakeGameAI(w=1000, h=1000)
     gameoverCount = 0
-    game.addAgent("masterBrain")
+    # game.addAgent("masterBrain")
     game.addDeepQagent("deepQ 255")
-    game.agents[0].loadBrain("model/q_learning.pkl")
-    game.agents[1].loadBrain("model/deepQmodel.pth")
-    # game.agents[1].loadBrain("model/brain.pkl")
+    print(game.agents[0].model)
+    # game.agents[0].loadBrain("model/q_learning.pkl")
+    # game.agents[0].loadBrain("model/deepQmodel.pth")
+    # game.addAgents(5)
     # game.addDeepQagent("deepQ 128", layers=[128])
     # game.addDeepQagent("deepQ 64", layers=[64])
 
@@ -214,6 +208,7 @@ if __name__ == '__main__':
             if gameoverCount >= len(game.agents):
                 # game.printScores()
                 gameoverCount = 0
+                helper.plot(game.agents[0].scores, game.agents[0].mean_scores)
                 game.reset()
 
 

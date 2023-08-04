@@ -9,16 +9,24 @@ import numpy as np
 class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
-        self.input_layer = nn.Linear(input_size, hidden_size[0])
-        self.hidden_layers = []
+        print("new model created")
+        # Create a list to store the hidden layers
+        self.hidden_layers = nn.ModuleList()
 
-        for i in range(len(hidden_size)):
-            print("hidden_size[i]: ", hidden_size[i])
-            # check if we are at the last hidden layer
-            if i != len(hidden_size) - 1:
-                self.hidden_layers.append(nn.Linear(hidden_size[i], hidden_size[i + 1]))
+        # Add the first hidden layer
+        if len(hidden_size) > 0:
+            print("input size: ", input_size)
+            self.input_layer = nn.Linear(input_size, hidden_size[0])
 
-        self.output_layer = nn.Linear(hidden_size[-1], output_size)
+        # Add the remaining hidden layers
+        for i in range(len(hidden_size) - 1):
+            print("hidden size: ", hidden_size[i])
+            self.hidden_layers.append(nn.Linear(hidden_size[i], hidden_size[i + 1]))
+
+        # Create the output layer
+        print("output size: ", output_size)
+        self.output_layer = nn.Linear(hidden_size[-1] if len(hidden_size) > 0 else input_size, output_size)
+
         # self.linear1 = nn.Linear(input_size, hidden_size)
         # self.linear2 = nn.Linear(hidden_size, output_size)
 

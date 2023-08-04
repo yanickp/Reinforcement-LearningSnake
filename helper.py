@@ -13,10 +13,11 @@ def plot(scores, mean_scores):
     plt.plot(scores)
     plt.plot(mean_scores)
     plt.ylim(ymin=0)
-    plt.text(len(scores)-1, scores[-1], str(scores[-1]))
-    plt.text(len(mean_scores)-1, mean_scores[-1], str(mean_scores[-1]))
+    if len(scores) > 0:
+        plt.text(len(scores)-1, scores[-1], str(scores[-1]))
+        plt.text(len(mean_scores)-1, mean_scores[-1], str(mean_scores[-1]))
     plt.show(block=False)
-    plt.pause(.1)
+    # plt.pause(.1)
 
 def tint_color(original_color, tint_amount):
     r, g, b = original_color
