@@ -19,6 +19,7 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
+        self.layers = layers
         self.model = Linear_QNet(11, layers, 3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
@@ -47,6 +48,9 @@ class Agent:
                       Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
 
 
+    def loadBrain(self, path):
+        self.model = Linear_QNet(11, self.layers, 3)
+        self.model.load_state_dict(torch.load(path))
     def reset(self):
         self.direction = Direction.RIGHT
         self.isDead = False
@@ -165,9 +169,9 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 500 - self.n_games
+        self.epsilon = 80 - self.n_games
         final_move = [0, 0, 0]
-        if random.randint(0, 450) < self.epsilon:
+        if random.randint(0, 200) < self.epsilon:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
@@ -192,11 +196,11 @@ class Agent:
             # reward, done, score = game.play_step(final_move)
             state_new = next_state
 
-            # train short memory
-            self.train_short_memory(state_old, final_move, reward, state_new, done)
-
-            # remember
-            self.remember(state_old, final_move, reward, state_new, done)
+            if not self.loadedModel: # if not loaded model, train
+                # train short memory
+                self.train_short_memory(state_old, final_move, reward, state_new, done)
+                # remember
+                self.remember(state_old, final_move, reward, state_new, done)
 
             if done:
                 # train long memory, plot result

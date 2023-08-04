@@ -65,7 +65,7 @@ class SnakeGameAI:
         centerX = self.w // 2
         centerY = self.h // 2
 
-        if self.timesReset < 300:
+        if self.timesReset < 30:
             # Calculate the offset based on the number of times reset
             offset_blocks = self.timesReset // 15
 
@@ -181,11 +181,13 @@ class SnakeGameAI:
 if __name__ == '__main__':
     game = SnakeGameAI(w=1000, h=1000)
     gameoverCount = 0
-    # game.addAgent("masterBrain")
-    # game.agents[0].loadBrain("model/q_learning.pkl")
+    game.addAgent("masterBrain")
     game.addDeepQagent("deepQ 255")
-    game.addDeepQagent("deepQ 128", layers=[128])
-    game.addDeepQagent("deepQ 64", layers=[64])
+    game.agents[0].loadBrain("model/q_learning.pkl")
+    game.agents[1].loadBrain("model/deepQmodel.pth")
+    # game.agents[1].loadBrain("model/brain.pkl")
+    # game.addDeepQagent("deepQ 128", layers=[128])
+    # game.addDeepQagent("deepQ 64", layers=[64])
 
     while True:
         # if game.timesReset == 500:
