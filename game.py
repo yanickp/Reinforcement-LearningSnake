@@ -3,11 +3,9 @@ import random
 from collections import deque
 import helper
 from Qlearning_agent_vanilla import Agent_valilla
-from Qlearning_agent import Agent
+from Qlearning_agent import QLearningAgent
 from Direction import Direction, Point
 import concurrent.futures
-
-
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 18)
@@ -28,10 +26,11 @@ BLOCK_SIZE = 20
 
 class SnakeGameAI:
 
-    def __init__(self, w=1200, h=680):
+    def __init__(self, w=1200, h=680, uniqueFood=False):
         self.w = w
         self.h = h
         # init display
+        self.uniqueFood = uniqueFood
         self.display = pygame.display.set_mode((self.w, self.h))
         pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
@@ -54,7 +53,7 @@ class SnakeGameAI:
         self._place_food()
         self.frame_iteration = 0
 
-    def _place_food(self):
+    def _get_free_spot(self):
         centerX = self.w // 2
         centerY = self.h // 2
 
@@ -80,22 +79,29 @@ class SnakeGameAI:
 
         # print("food at: ", x, y)
 
-        self.food = Point(x, y)
-        self.foodAge = 0
-
         # if food is in any of the snakes
         for agent in self.agents:
-            if self.food in agent.snake:
+            if Point(x, y) in agent.snake:
                 self._place_food()
-        # if self.food in self.snake:
-        #     self._place_food()
+
+        return Point(x, y)
+
+    def _place_food(self):
+        if self.uniqueFood:
+            for agent in self.agents:
+                if agent.food is None:
+                    agent.food = self._get_free_spot()
+        else:
+            freeSpot = self._get_free_spot()
+            for agent in self.agents:
+                agent.food = freeSpot
 
     def play_step(self, action, agent):
         self.frame_iteration += 1
         self.foodAge += 1
         agent.TimeNotEaten += 1
 
-        if agent.TimeNotEaten > 500 * len(agent.snake): # and self.timesReset < 300:
+        if agent.TimeNotEaten > 100 * len(agent.snake):  # and self.timesReset < 300:
             # print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
@@ -118,10 +124,11 @@ class SnakeGameAI:
             return reward, game_over, agent.score
 
         # 4. place new food or just move
-        if agent.head == self.food:
+        if agent.head == agent.food:
             agent.score += 1
             agent.TimeNotEaten = 0
             reward = 10
+            agent.food = None
             self._place_food()
         else:
             # reward = -(self._distance_to_food() / 10)
@@ -144,15 +151,21 @@ class SnakeGameAI:
                 pygame.draw.rect(self.display, agent.color, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
                 pygame.draw.rect(self.display, agent.accent_color, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
 
-            text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " avg: " + str(round(agent.total_score / max(agent.n_games, 1), 2)) + " hs: " + str(agent.record), True, agent.color)
+            text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " avg: " + str(
+                round(agent.total_score / max(agent.n_games, 1), 2)) + " hs: " + str(agent.record), True, agent.color)
 
             self.display.blit(text, [0, 20 * (index + 1)])
-        self.display.blit(font.render("game: " + str(self.timesReset) + " fps: " + str(round(self.clock.get_fps(),2)), True, WHITE), [0, 0])
+        self.display.blit(
+            font.render("game: " + str(self.timesReset) + " fps: " + str(round(self.clock.get_fps(), 2)), True, WHITE),
+            [0, 0])
 
-        pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
+        for agent in self.agents:
+            if agent.food is not None:
+                pygame.draw.rect(self.display, agent.color,
+                                 pygame.Rect(agent.food.x, agent.food.y, BLOCK_SIZE, BLOCK_SIZE))
         # pygame.draw.line(self.display, RED, (self.head.x, self.head.y), (self.food.x, self.food.y), 2)
         # draw rectangle for posible food locations
-        self.fps.append(self.clock.get_fps()) # add to fps list max len 1000
+        self.fps.append(self.clock.get_fps())  # add to fps list max len 1000
         pygame.display.flip()
 
     def printScores(self):
@@ -168,11 +181,11 @@ class SnakeGameAI:
             self.agents.append(Agent_valilla(self.w, self.h, BLOCK_SIZE, str("agent" + str(i))))
 
     def addDeepQagent(self, name, layers=[128, 128]):
-        self.agents.append(Agent(self.w, self.h, BLOCK_SIZE, name=name, layers=layers))
+        self.agents.append(QLearningAgent(self.w, self.h, BLOCK_SIZE, name=name, layers=layers))
 
 
 def runTraining():
-    game = SnakeGameAI(w=1000, h=1000)
+    game = SnakeGameAI(w=1000, h=1000, uniqueFood=True)
     gameoverCount = 0
 
     # game.addDeepQagent("deepQ 128", layers=[128])
@@ -185,13 +198,13 @@ def runTraining():
 
     while True:
         gameoverCount = 0
-        game._update_ui()
+        # game._update_ui()
         for agent in game.agents:
             if not agent.isDead:
-                state = agent.get_state(game.food)
+                state = agent.get_state()
                 action = agent.get_action(state)
                 reward, game_over, score = game.play_step(action, agent)
-                nextState = agent.get_state(game.food)
+                nextState = agent.get_state()
                 agent.train(state, action, reward, nextState, game_over, score)
                 if game_over:
                     gameoverCount += 1
@@ -208,6 +221,3 @@ def runTraining():
 
 if __name__ == '__main__':
     runTraining()
-
-
-

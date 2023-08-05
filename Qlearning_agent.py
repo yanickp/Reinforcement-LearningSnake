@@ -6,153 +6,26 @@ from Direction import Direction, Point
 from model import Linear_QNet, QTrainer
 from helper import plot, tint_color
 import threading
+import agentParent as AgentParent
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
 LR = 0.001
 
 
-class Agent:
+class QLearningAgent(AgentParent.agent):
 
     def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256]):
-        self.n_games = 0
-        self.epsilon = max(0.0, 1 - self.n_games / 200)  # Decreasing epsilon over time
-
+        super().__init__(board_width, board_height, block_size, name)
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
         self.layers = layers
         self.model = Linear_QNet(11, layers, 3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
-        self.name = name
-        self.isDead = False
-        self.TimeNotEaten = 0
-        self.score = 0
-        self.record = 0
-        self.total_score = 0
-
-        self.scores = []
-        self.mean_scores = []
-
-        self.loadedModel = False
-
-        self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        self.accent_color = tint_color(self.color, 50)  # tint by 50 for accent color
-
-        self.board_width = board_width
-        self.board_height = board_height
-        self.BLOCK_SIZE = block_size
-
-        # inittialize the snake
-        self.direction = Direction.RIGHT
-
-        self.head = Point(self.board_width / 2, self.board_height / 2)
-        self.snake = [self.head,
-                      Point(self.head.x - self.BLOCK_SIZE, self.head.y),
-                      Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
-
     def loadBrain(self, path):
         self.loadedModel = True
         self.model.load_state_dict(torch.load(path))
-
-    def reset(self):
-        self.direction = Direction.RIGHT
-        self.isDead = False
-        self.TimeNotEaten = 0
-        self.head = Point(self.board_width / 2, self.board_height / 2)
-        self.snake = [self.head,
-                      Point(self.head.x - self.BLOCK_SIZE, self.head.y),
-                      Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
-
-        self.score = 0
-
-    def get_state(self, food):
-        head = self.snake[0]
-        point_l = Point(head.x - 20, head.y)
-        point_r = Point(head.x + 20, head.y)
-        point_u = Point(head.x, head.y - 20)
-        point_d = Point(head.x, head.y + 20)
-
-        dir_l = self.direction == Direction.LEFT
-        dir_r = self.direction == Direction.RIGHT
-        dir_u = self.direction == Direction.UP
-        dir_d = self.direction == Direction.DOWN
-
-        state = [
-            # Danger straight
-            (dir_r and self.is_collision(point_r)) or
-            (dir_l and self.is_collision(point_l)) or
-            (dir_u and self.is_collision(point_u)) or
-            (dir_d and self.is_collision(point_d)),
-
-            # Danger right
-            (dir_u and self.is_collision(point_r)) or
-            (dir_d and self.is_collision(point_l)) or
-            (dir_l and self.is_collision(point_u)) or
-            (dir_r and self.is_collision(point_d)),
-
-            # Danger left
-            (dir_d and self.is_collision(point_r)) or
-            (dir_u and self.is_collision(point_l)) or
-            (dir_r and self.is_collision(point_u)) or
-            (dir_l and self.is_collision(point_d)),
-
-            # Move direction
-            dir_l,
-            dir_r,
-            dir_u,
-            dir_d,
-
-            # Food location 
-            food.x < head.x,  # food left
-            food.x > head.x,  # food right
-            food.y < head.y,  # food up
-            food.y > head.y  # food down
-        ]
-
-        return np.array(state, dtype=int)
-
-    def _move(self, action):
-        # [straight, right, left]
-        if not self.isDead:
-            clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
-            idx = clock_wise.index(self.direction)
-
-            if np.array_equal(action, [1, 0, 0]):
-                new_dir = clock_wise[idx]  # no change
-            elif np.array_equal(action, [0, 1, 0]):
-                next_idx = (idx + 1) % 4
-                new_dir = clock_wise[next_idx]  # right turn r -> d -> l -> u
-            else:  # [0, 0, 1]
-                next_idx = (idx - 1) % 4
-                new_dir = clock_wise[next_idx]  # left turn r -> u -> l -> d
-
-            self.direction = new_dir
-
-            x = self.head.x
-            y = self.head.y
-            if self.direction == Direction.RIGHT:
-                x += self.BLOCK_SIZE
-            elif self.direction == Direction.LEFT:
-                x -= self.BLOCK_SIZE
-            elif self.direction == Direction.DOWN:
-                y += self.BLOCK_SIZE
-            elif self.direction == Direction.UP:
-                y -= self.BLOCK_SIZE
-
-            self.head = Point(x, y)
-
-    def is_collision(self, pt=None):
-        if pt is None:
-            pt = self.head
-        # hits boundary
-        if pt.x > self.board_width - self.BLOCK_SIZE or pt.x < 0 or pt.y > self.board_height - self.BLOCK_SIZE or pt.y < 0:
-            return True
-        # hits itself
-        if pt in self.snake[1:]:
-            return True
-
-        return False
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))  # popleft if MAX_MEMORY is reached
@@ -174,7 +47,7 @@ class Agent:
     def get_action(self, state):
         final_move = [0, 0, 0]
         # random moves: tradeoff exploration / exploitation
-        if random.random() < self.epsilon and not self.loadedModel:
+        if random.random() < max(0.0, 1 - self.n_games / self.epsilon) and not self.loadedModel:
             # Random exploration
             move = random.randint(0, 2)
             final_move[move] = 1
@@ -219,12 +92,12 @@ class Agent:
                 self.mean_scores.append(np.mean(self.scores[-50:]))
                 if score > self.record:
                     self.record = score
-                    self.model.save(file_name=str(self.name) + '.pth')
+                    self.model.save(file_name=str(self.name) + 'H' + str(self.record) + '.pth')
 
                 # plot_scores.append(score)
                 self.total_score += score
 
 
 if __name__ == '__main__':
-    agent = Agent()
+    agent = QLearningAgent()
     agent.train()
