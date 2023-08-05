@@ -211,10 +211,10 @@ class Agent:
                 self.isDead = True
                 self.train_long_memory()
                 self.scores.append(score)
-                self.mean_scores.append(np.mean(self.scores[-10:]))
+                self.mean_scores.append(np.mean(self.scores[-50:]))
                 if score > self.record:
                     self.record = score
-                    self.model.save(file_name='deepQ128128.pth')
+                    self.model.save(file_name=str(self.name) + '.pth')
 
                 # plot_scores.append(score)
                 self.total_score += score

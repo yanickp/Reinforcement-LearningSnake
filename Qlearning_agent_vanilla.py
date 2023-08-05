@@ -26,6 +26,9 @@ class Agent_valilla:
 
         self.loadedModel = False
 
+        self.scores = []
+        self.mean_scores = []
+
         self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         self.accent_color = tint_color(self.color, 50)  # tint by 50 for accent color
 
@@ -129,8 +132,8 @@ class Agent_valilla:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 1000 - self.n_games
-        change = random.randint(0, 500)
+        self.epsilon = 100 - self.n_games
+        change = random.randint(0, 100)
         if change < self.epsilon and not self.loadedModel: #or change < 5:
             move = random.randint(0, 2)
         else:
@@ -196,6 +199,8 @@ class Agent_valilla:
             self.n_games += 1
             self.total_score += score
             mean_score = self.total_score / self.n_games
+            self.scores.append(score)
+            self.mean_scores.append(np.mean(self.scores[-50:]))
             # print(str(self.name) + 's Game', self.n_games, 'Score', score, 'Record:', self.record, 'Mean Score:', mean_score)
 
 

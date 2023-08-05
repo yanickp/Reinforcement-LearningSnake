@@ -38,7 +38,7 @@ class SnakeGameAI:
         self.clock = pygame.time.Clock()
         self.timesReset = 0
         self.foodAge = 0
-        self.speed = 80000
+        self.speed = 8000
 
         self.agents = []
 
@@ -95,8 +95,8 @@ class SnakeGameAI:
         self.foodAge += 1
         agent.TimeNotEaten += 1
 
-        if agent.TimeNotEaten > 100 * len(agent.snake) and self.timesReset < 300:
-            print("Agent " + str(agent.name) + " died of starvation")
+        if agent.TimeNotEaten > 500 * len(agent.snake): # and self.timesReset < 300:
+            # print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
         # 1. collect user input
@@ -175,13 +175,14 @@ if __name__ == '__main__':
     game = SnakeGameAI(w=1000, h=1000)
     gameoverCount = 0
     # game.addAgent("masterBrain")
-    game.addDeepQagent("deepQ 255")
-    print(game.agents[0].model)
-    # game.agents[0].loadBrain("model/q_learning.pkl")
-    # game.agents[0].loadBrain("model/deepQmodel.pth")
+    # game.addDeepQagent("deepQ 255")
+
     # game.addAgents(5)
-    # game.addDeepQagent("deepQ 128", layers=[128])
-    # game.addDeepQagent("deepQ 64", layers=[64])
+    game.addDeepQagent("deepQ 128", layers=[128])
+    game.addDeepQagent("deepQ 64", layers=[64])
+    game.addDeepQagent("deepQ 256", layers=[256])
+    game.addDeepQagent("deepQ 64, 64", layers=[512])
+    game.addAgent("vanilla Q")
 
     while True:
         # if game.timesReset == 500:
@@ -208,7 +209,8 @@ if __name__ == '__main__':
             if gameoverCount >= len(game.agents):
                 # game.printScores()
                 gameoverCount = 0
-                helper.plot(game.agents[0].scores, game.agents[0].mean_scores)
+                helper.plotAllMean(game.agents)
+                # helper.plot(game.agents[0].scores, game.agents[0].mean_scores)
                 game.reset()
 
 
