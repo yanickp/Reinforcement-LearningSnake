@@ -36,6 +36,7 @@ def getMeanScoresFromAgents(agents):
     return mean_scores
 
 def plotAllMean(agents):
+    plt.figure(2)
     display.clear_output(wait=True)
     display.display(plt.gcf())
     plt.clf()
@@ -52,6 +53,22 @@ def plotAllMean(agents):
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05),
               ncol=3, fancybox=True, shadow=True)
     plt.legend()
+    plt.show(block=False)
+    # plt.pause(0.001)
+
+def plotFps(fps):
+    plt.figure(1)
+    plt.clf()
+    plt.title('average fps')
+    plt.xlabel('last 100 frames')
+    # always have the same height
+    plt.ylim(0, 500)
+    plt.ylabel('fps')
+    mean = sum(fps) / len(fps)
+    plt.hlines(mean, 0, len(fps), colors='r', linestyles='dashed')
+    plt.hlines(min(fps), 0, len(fps), colors='r', linestyles='dashed')
+    plt.hlines(max(fps), 0, len(fps), colors='r', linestyles='dashed')
+    plt.plot(fps)
     plt.show(block=False)
     # plt.pause(0.001)
 

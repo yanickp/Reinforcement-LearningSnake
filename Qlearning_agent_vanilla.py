@@ -193,6 +193,8 @@ class Agent_valilla:
         if done:
             if score > self.record:
                 self.record = score
+                with open(f'model/{self.name}.pkl', 'wb') as fp:
+                    pickle.dump(self.q_table, fp)
 
             # game.reset()
             self.isDead = True

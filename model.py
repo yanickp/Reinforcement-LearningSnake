@@ -4,12 +4,16 @@ import torch.optim as optim
 import torch.nn.functional as F
 import os
 import numpy as np
+import tensorflow as tf
 
 
 class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         print("new model created")
+        # check gpu availability for tf
+        print("tf gpu availability: ", tf.config.list_physical_devices('GPU'))
+
         # Create a list to store the hidden layers
         self.hidden_layers = nn.ModuleList()
 
@@ -57,6 +61,7 @@ class QTrainer:
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def train_step(self, state, action, reward, next_state, done):
         # state = torch.tensor(state, dtype=torch.float)

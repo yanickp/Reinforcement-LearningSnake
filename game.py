@@ -1,13 +1,12 @@
 import pygame
 import random
-from collections import namedtuple
-import numpy as np
-
+from collections import deque
 import helper
 from Qlearning_agent_vanilla import Agent_valilla
 from Qlearning_agent import Agent
 from Direction import Direction, Point
-import pickle
+import concurrent.futures
+
 
 
 pygame.init()
@@ -41,6 +40,7 @@ class SnakeGameAI:
         self.speed = 8000
 
         self.agents = []
+        self.fps = deque(maxlen=1000)
 
         self.reset()
 
@@ -60,7 +60,7 @@ class SnakeGameAI:
 
         if self.timesReset < 300:
             # Calculate the offset based on the number of times reset
-            offset_blocks = self.timesReset // 20
+            offset_blocks = self.timesReset // 50
 
             # Limit the offset to 3 blocks initially and increase it by 1 block every 20 times reset
             offset_blocks = max(offset_blocks, 3)
@@ -95,7 +95,7 @@ class SnakeGameAI:
         self.foodAge += 1
         agent.TimeNotEaten += 1
 
-        if agent.TimeNotEaten > 500 * len(agent.snake): # and self.timesReset < 300:
+        if agent.TimeNotEaten > 100 * len(agent.snake): # and self.timesReset < 300:
             # print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
@@ -147,12 +147,12 @@ class SnakeGameAI:
             text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " avg: " + str(round(agent.total_score / max(agent.n_games, 1), 2)) + " hs: " + str(agent.record), True, agent.color)
 
             self.display.blit(text, [0, 20 * (index + 1)])
-        self.display.blit(font.render("game: " + str(self.timesReset), True, WHITE), [0, 0])
+        self.display.blit(font.render("game: " + str(self.timesReset) + " fps: " + str(round(self.clock.get_fps(),2)), True, WHITE), [0, 0])
 
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
         # pygame.draw.line(self.display, RED, (self.head.x, self.head.y), (self.food.x, self.food.y), 2)
         # draw rectangle for posible food locations
-
+        self.fps.append(self.clock.get_fps()) # add to fps list max len 1000
         pygame.display.flip()
 
     def printScores(self):
@@ -171,27 +171,19 @@ class SnakeGameAI:
         self.agents.append(Agent(self.w, self.h, BLOCK_SIZE, name=name, layers=layers))
 
 
-if __name__ == '__main__':
+def runTraining():
     game = SnakeGameAI(w=1000, h=1000)
     gameoverCount = 0
-    # game.addAgent("masterBrain")
-    # game.addDeepQagent("deepQ 255")
 
-    # game.addAgents(5)
     game.addDeepQagent("deepQ 128", layers=[128])
-    game.addDeepQagent("deepQ 64", layers=[64])
     game.addDeepQagent("deepQ 256", layers=[256])
-    game.addDeepQagent("deepQ 64, 64", layers=[512])
-    game.addAgent("vanilla Q")
+    game.addDeepQagent("deepQ 512", layers=[512])
+    game.addDeepQagent("deepQ 128, 128", layers=[128, 128])
+    game.addDeepQagent("deepQ 256, 256", layers=[256, 256])
+    game.addDeepQagent("deepQ 512, 512", layers=[512, 512])
+    # game.addAgent("vanilla Q")
 
     while True:
-        # if game.timesReset == 500:
-        #     game.printScores()
-        #     # save dictionary to person_data.pkl file
-        #     with open('model/brain.pkl', 'wb') as fp:
-        #         pickle.dump(game.agents[0].q_table, fp)
-        #         print('dictionary saved successfully to file')
-        #     break
         gameoverCount = 0
         game._update_ui()
         for agent in game.agents:
@@ -210,9 +202,12 @@ if __name__ == '__main__':
                 # game.printScores()
                 gameoverCount = 0
                 helper.plotAllMean(game.agents)
-                # helper.plot(game.agents[0].scores, game.agents[0].mean_scores)
+                helper.plotFps(game.fps)
                 game.reset()
 
 
-# todo 1: make 2 snakes play against each other
-# todo 2: make 2 snakes play against each other with different brains
+if __name__ == '__main__':
+    runTraining()
+
+
+

@@ -50,9 +50,10 @@ class Agent:
                       Point(self.head.x - self.BLOCK_SIZE, self.head.y),
                       Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
 
-
     def loadBrain(self, path):
+        self.loadedModel = True
         self.model.load_state_dict(torch.load(path))
+
     def reset(self):
         self.direction = Direction.RIGHT
         self.isDead = False
@@ -63,7 +64,6 @@ class Agent:
                       Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
 
         self.score = 0
-
 
     def get_state(self, food):
         head = self.snake[0]
@@ -140,6 +140,7 @@ class Agent:
                 y -= self.BLOCK_SIZE
 
             self.head = Point(x, y)
+
     def is_collision(self, pt=None):
         if pt is None:
             pt = self.head
@@ -171,9 +172,9 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 200 - self.n_games
+        self.epsilon = 500 - self.n_games
         final_move = [0, 0, 0]
-        if random.randint(0, 200) < self.epsilon:
+        if random.randint(0, 500) < self.epsilon & self.loadedModel is False:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
@@ -198,7 +199,7 @@ class Agent:
             # reward, done, score = game.play_step(final_move)
             state_new = next_state
 
-            if not self.loadedModel: # if not loaded model, train
+            if not self.loadedModel:  # if not loaded model, train
                 # train short memory
                 self.train_short_memory(state_old, final_move, reward, state_new, done)
                 # remember
@@ -218,7 +219,6 @@ class Agent:
 
                 # plot_scores.append(score)
                 self.total_score += score
-
 
 
 if __name__ == '__main__':
