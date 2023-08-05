@@ -95,7 +95,7 @@ class SnakeGameAI:
         self.foodAge += 1
         agent.TimeNotEaten += 1
 
-        if agent.TimeNotEaten > 100 * len(agent.snake): # and self.timesReset < 300:
+        if agent.TimeNotEaten > 500 * len(agent.snake): # and self.timesReset < 300:
             # print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
@@ -175,13 +175,13 @@ def runTraining():
     game = SnakeGameAI(w=1000, h=1000)
     gameoverCount = 0
 
-    game.addDeepQagent("deepQ 128", layers=[128])
+    # game.addDeepQagent("deepQ 128", layers=[128])
     game.addDeepQagent("deepQ 256", layers=[256])
-    game.addDeepQagent("deepQ 512", layers=[512])
-    game.addDeepQagent("deepQ 128, 128", layers=[128, 128])
-    game.addDeepQagent("deepQ 256, 256", layers=[256, 256])
-    game.addDeepQagent("deepQ 512, 512", layers=[512, 512])
-    # game.addAgent("vanilla Q")
+    # game.addDeepQagent("deepQ 512", layers=[512])
+    # game.addDeepQagent("deepQ 128, 128", layers=[128, 128])
+    # game.addDeepQagent("deepQ 256, 256", layers=[256, 256])
+    # game.addDeepQagent("deepQ 512, 512", layers=[512, 512])
+    game.addAgent("vanilla Q")
 
     while True:
         gameoverCount = 0
@@ -202,7 +202,7 @@ def runTraining():
                 # game.printScores()
                 gameoverCount = 0
                 helper.plotAllMean(game.agents)
-                helper.plotFps(game.fps)
+                # helper.plotFps(game.fps)
                 game.reset()
 
 

@@ -4,15 +4,11 @@ import torch.optim as optim
 import torch.nn.functional as F
 import os
 import numpy as np
-import tensorflow as tf
 
 
 class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
-        print("new model created")
-        # check gpu availability for tf
-        print("tf gpu availability: ", tf.config.list_physical_devices('GPU'))
 
         # Create a list to store the hidden layers
         self.hidden_layers = nn.ModuleList()
@@ -21,11 +17,13 @@ class Linear_QNet(nn.Module):
         if len(hidden_size) > 0:
             print("input size: ", input_size)
             self.input_layer = nn.Linear(input_size, hidden_size[0])
+            print('hidden size 0: ', hidden_size[0])
 
-        # Add the remaining hidden layers
-        for i in range(len(hidden_size) - 1):
-            print("hidden size: ", hidden_size[i])
-            self.hidden_layers.append(nn.Linear(hidden_size[i], hidden_size[i + 1]))
+        for idx, value in enumerate(hidden_size):
+            if idx == 0:
+                continue
+            print('hidden size {idx}: ', hidden_size[idx])
+            self.hidden_layers.append(nn.Linear(hidden_size[idx - 1], hidden_size[idx]))
 
         # Create the output layer
         print("output size: ", output_size)
@@ -59,6 +57,7 @@ class QTrainer:
         self.lr = lr
         self.gamma = gamma
         self.model = model
+        self.target_model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -90,7 +89,7 @@ class QTrainer:
         for idx in range(len(done)):
             Q_new = reward[idx]
             if not done[idx]:
-                Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
+                Q_new = reward[idx] + self.gamma * torch.max(self.target_model(next_state[idx]))
 
             target[idx][torch.argmax(action[idx]).item()] = Q_new
 
@@ -102,3 +101,6 @@ class QTrainer:
         loss.backward()
 
         self.optimizer.step()
+
+    def update_target(self):
+        self.target_model.load_state_dict(self.model.state_dict())

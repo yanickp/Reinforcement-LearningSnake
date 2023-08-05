@@ -16,7 +16,8 @@ class Agent:
 
     def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256]):
         self.n_games = 0
-        self.epsilon = 0  # randomness
+        self.epsilon = max(0.0, 1 - self.n_games / 200)  # Decreasing epsilon over time
+
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
         self.layers = layers
@@ -171,13 +172,14 @@ class Agent:
         self.trainer.train_step(state, action, reward, next_state, done)
 
     def get_action(self, state):
-        # random moves: tradeoff exploration / exploitation
-        self.epsilon = 500 - self.n_games
         final_move = [0, 0, 0]
-        if random.randint(0, 500) < self.epsilon & self.loadedModel is False:
+        # random moves: tradeoff exploration / exploitation
+        if random.random() < self.epsilon and not self.loadedModel:
+            # Random exploration
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
+            # Exploitation using the model's prediction
             state0 = torch.tensor(state, dtype=torch.float)
             prediction = self.model(state0)
             move = torch.argmax(prediction).item()
@@ -211,6 +213,8 @@ class Agent:
                 self.n_games += 1
                 self.isDead = True
                 self.train_long_memory()
+                if self.n_games % 5 == 0:
+                    self.trainer.update_target()
                 self.scores.append(score)
                 self.mean_scores.append(np.mean(self.scores[-50:]))
                 if score > self.record:

@@ -41,7 +41,7 @@ def plotAllMean(agents):
     display.display(plt.gcf())
     plt.clf()
     ax = plt.subplot(111)
-    plt.title('Training...')
+    # plt.title('Training...')
     plt.xlabel('Number of Games')
     plt.ylabel('mean Score')
     for i, agent in enumerate(agents):
@@ -50,9 +50,9 @@ def plotAllMean(agents):
             plt.text(len(agent.mean_scores) - 1, agent.mean_scores[-1], str(agent.name))
             plt.text(len(agent.mean_scores) - 1, agent.mean_scores[-1], str(agent.name))
     plt.ylim(ymin=0)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05),
-              ncol=3, fancybox=True, shadow=True)
-    plt.legend()
+
+    plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.07),
+              ncol=len(agents), fancybox=True, shadow=True)
     plt.show(block=False)
     # plt.pause(0.001)
 
