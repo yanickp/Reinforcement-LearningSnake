@@ -125,7 +125,7 @@ class SnakeGameAI:
             return reward, game_over, agent.score
 
         # 4. place new food or just move
-        if agent.head == agent.food:
+        if int(agent.head.x) == int(agent.food.x) and int(agent.head.y) == int(agent.food.y):
             agent.score += 1
             agent.TimeNotEaten = 0
             reward = 10
@@ -197,7 +197,7 @@ def runTraining():
 
     deepQ = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision", layers=[256, 128], inputSize=32)
     game.agents.append(deepQ)
-    
+
 
     game.reset()
     while True:
