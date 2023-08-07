@@ -92,6 +92,7 @@ class SnakeGameAI:
             for agent in self.agents:
                 if agent.food is None:
                     agent.food = self._get_free_spot()
+                    # agent.food = Point(600, 680)
         else:
             freeSpot = self._get_free_spot()
             for agent in self.agents:
@@ -116,6 +117,10 @@ class SnakeGameAI:
         agent._move(action)  # update the head
         agent.snake.insert(0, agent.head)
         agent.TimeNotEaten += 1
+
+        #update the vision
+        agent.look()
+
         # 3. check if game over
         reward = 0
         game_over = False
@@ -147,7 +152,11 @@ class SnakeGameAI:
 
         for index, agent in enumerate(self.agents):
             # draw snake
-            # pygame.draw.line(self.display, agent.color, agent.head, (0, agent.head.y))  # left
+            for point, color in agent.drawable_visions:
+                pointX, pointY = point
+                pointX += BLOCK_SIZE / 2
+                pointY += BLOCK_SIZE / 2
+                pygame.draw.line(self.display, color, (agent.head.x + BLOCK_SIZE / 2, agent.head.y + BLOCK_SIZE / 2), (pointX, pointY)) # left
             # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, 0))  # top
             # pygame.draw.line(self.display, agent.color, agent.head, (self.w, agent.head.y))  # right
             # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, self.h))  # bottom
@@ -191,11 +200,11 @@ class SnakeGameAI:
 
 
 def runTraining():
-    game = SnakeGameAI(w=800, h=800, uniqueFood=True,
-                       headless=False, speed=80000)  # uniqueFood means if they all fight for the same food or not, headless means no UI so faster training
+    game = SnakeGameAI(w=600, h=600, uniqueFood=True,
+                       headless=False, speed=2)  # uniqueFood means if they all fight for the same food or not, headless means no UI so faster training
     gameoverCount = 0
 
-    deepQ = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision", layers=[256, 128], inputSize=32)
+    deepQ = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision", layers=[20, 12], inputSize=20)
     game.agents.append(deepQ)
 
 
@@ -218,7 +227,7 @@ def runTraining():
             if gameoverCount >= len(game.agents):
                 # game.printScores()
                 gameoverCount = 0
-                helper.plotAllMean(game.agents)
+                # helper.plotAllMean(game.agents)
                 # helper.plotFps(game.fps)
                 game.reset()
 

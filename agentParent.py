@@ -1,4 +1,5 @@
 import copy
+import math
 from typing import List
 
 import numpy as np
@@ -31,7 +32,7 @@ class agent:
         self.scores = []
         self.mean_scores = []
 
-        self._vision_type = VISION_8
+        self._vision_type = VISION_4
         self._vision: List[Vision] = [None] * len(self._vision_type)
         self.vision_as_array = [0] * len(self._vision_type) * 3
         self.apple_and_self_vision = 'binary'
@@ -53,6 +54,9 @@ class agent:
                       Point(self.head.x - self.BLOCK_SIZE, self.head.y),
                       Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
 
+        # self.drawable_visions = [Point(0, 0)] * len(self._vision_type)
+        self.drawable_visions = []  # List of tuples with (point, color)
+
     def reset(self):
         self.direction = Direction.RIGHT
         self.tailDirection = Direction.RIGHT
@@ -65,6 +69,8 @@ class agent:
 
         self.score = 0
         self.food = None
+        self._vision: List[Vision] = [None] * len(self._vision_type)
+        self.vision_as_array = [0] * len(self._vision_type) * 3
 
     def is_collision(self, pt=None) -> bool:
         if pt is None:
@@ -150,20 +156,21 @@ class agent:
 
     def get_state(self):
         state = []
+        tailDR = self.get_tail_direction()
         self.look()
         for i, value in enumerate(self.vision_as_array):
             state.append(self.vision_as_array[i])
-        #tail dirrection
-        state.append(self.tailDirection == Direction.LEFT)
-        state.append(self.tailDirection == Direction.RIGHT)
-        state.append(self.tailDirection == Direction.UP)
-        state.append(self.tailDirection == Direction.DOWN)
+        # tail dirrection
+        state.append(tailDR == Direction.LEFT)
+        state.append(tailDR == Direction.RIGHT)
+        state.append(tailDR == Direction.UP)
+        state.append(tailDR == Direction.DOWN)
         # snake direction
         state.append(self.direction == Direction.LEFT)
         state.append(self.direction == Direction.RIGHT)
         state.append(self.direction == Direction.UP)
         state.append(self.direction == Direction.DOWN)
-        return np.array(state, dtype=int)
+        return np.array(state, dtype=float)
 
     def _move(self, action):
         # [straight, right, left]
@@ -212,7 +219,13 @@ class agent:
             return Direction.UP
 
     def isInBody(self, point) -> bool:
-        return point in self.snake
+        for body_part in self.snake:
+            # skip head
+            if body_part == self.head:
+                continue
+            if body_part == point:
+                return True
+        return False
 
     def _vision_as_input_array(self) -> None:
         # Update the input array
@@ -223,15 +236,16 @@ class agent:
             self.vision_as_array[i * 3 + 1] = value.dist_to_apple
             self.vision_as_array[i * 3 + 2] = value.dist_to_self
 
-
     def look(self):
         # Look all around
+        self.drawable_visions = []
         for i, slope in enumerate(self._vision_type):
             vision = self.look_in_direction(slope)
             self._vision[i] = vision
 
         # Update the input array
         self._vision_as_input_array()
+
     def look_in_direction(self, slope: Slope):
         dist_to_wall = None
         dist_to_apple = np.inf
@@ -242,30 +256,37 @@ class agent:
         self_location = None
 
         # position = self.snake[0].copy()
-        position = Point(self.snake[0].x, self.snake[0].y)
+        position = Point(int(self.head.x), int(self.head.y))
         distance = 1.0
         total_distance = 0.0
 
         # Can't start by looking at yourself
-        position.x += slope.horizontal
-        position.y += slope.vertical
+        position.x += int(slope.horizontal) * self.BLOCK_SIZE
+        position.y += int(slope.vertical) * self.BLOCK_SIZE
         total_distance += distance
         body_found = False  # Only need to find the first occurance since it's the closest
         food_found = False
         while not self._wall_collision(position):
+            # distance_to_food = math.sqrt((self.food.x - position.x) ** 2 + (self.food.y - position.y) ** 2)
             if not body_found and self.isInBody(position):
                 body_found = True
                 self_location = position
+                dist_to_self = total_distance
             if not food_found and self.food is not None and position == self.food:
                 food_found = True
+                dist_to_apple = total_distance
                 apple_location = position
 
-            position.x += slope.horizontal
-            position.y += slope.vertical
+            position.x += int(slope.horizontal) * self.BLOCK_SIZE
+            position.y += int(slope.vertical) * self.BLOCK_SIZE
             total_distance += distance
         assert (total_distance != 0.0)
 
-        dist_to_wall = 1.0 / total_distance
+        dist_to_wall = 1 / total_distance
+        # normalize distance to wall between 0 and 1
+        # dist_to_wall = dist_to_wall / (self.board_width / self.BLOCK_SIZE)
+        # dist_to_wall = 1.0 / dist_to_wall
+
         if self.apple_and_self_vision == 'binary':
             dist_to_apple = 1.0 if dist_to_apple != np.inf else 0.0
             dist_to_self = 1.0 if dist_to_self != np.inf else 0.0
@@ -275,4 +296,6 @@ class agent:
             dist_to_self = 1.0 / dist_to_self
 
         vision = Vision(dist_to_wall, dist_to_apple, dist_to_self)
+        new_point = (position.x, position.y)
+        self.drawable_visions.append((new_point, (255 * dist_to_self, dist_to_apple * 255, 100)))
         return vision
