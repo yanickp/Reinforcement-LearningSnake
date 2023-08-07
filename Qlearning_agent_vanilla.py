@@ -6,16 +6,15 @@ import threading
 from helper import tint_color
 import agentParent as AgentParent
 
-MAX_MEMORY = 100_000
-BATCH_SIZE = 1000
-LR = 0.001
 
 
 class Agent_valilla(AgentParent.agent):
 
-    def __init__(self, board_width, board_height, block_size, name="vanilla"):
+    def __init__(self, board_width, board_height, block_size, name="vanilla", LR=0.1, gamma=0.99):
         super().__init__(board_width, board_height, block_size, name)
         self.q_table = {}
+        self.LR = LR
+        self.gamma = gamma
 
     def _get_q_value(self, state, action):
         # Get the Q-value for a specific state-action pair from the Q-table
@@ -36,9 +35,7 @@ class Agent_valilla(AgentParent.agent):
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 100 - self.n_games
-        change = random.randint(0, 100)
-        if change < self.epsilon and not self.loadedModel:  # or change < 5:
+        if random.random() < max(0.0, 1 - self.n_games / self.epsilon) and not self.loadedModel:  # or change < 5:
             move = random.randint(0, 2)
         else:
             state = tuple(state)
@@ -61,14 +58,14 @@ class Agent_valilla(AgentParent.agent):
             max_next_q = max(
                 self.q_table.get(next_state,
                                  [0, 0, 0]))  # [0,0,0] is the default value if next_state is not in the Q-table
-            new_q = current_q + 0.1 * (
-                    reward + 0.99 * max_next_q - current_q)  # Learning rate = 0.1, discount factor = 0.99
+            new_q = current_q + self.LR * (
+                    reward + self.gamma * max_next_q - current_q)  # Learning rate = 0.1, discount factor = 0.99
             self._update_q_value(state, action, new_q)
 
         if done:
             if score > self.record:
                 self.record = score
-                with open(f'model/{self.name}.pkl', 'wb') as fp:
+                with open(f'model/{self.name}H{str(self.record)}.pkl', 'wb') as fp:
                     pickle.dump(self.q_table, fp)
 
             # game.reset()

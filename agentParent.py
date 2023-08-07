@@ -1,8 +1,11 @@
+import copy
+from typing import List
+
 import numpy as np
 
-from Direction import Direction, Point
+from Direction import Direction, Point, Slope
 import threading
-from helper import tint_color
+from helper import tint_color, Vision, VISION_8, VISION_4, VISION_16
 import random
 
 BLOCK_SIZE = 20
@@ -12,7 +15,7 @@ class agent:
     def __init__(self, board_width, board_height, block_size, name):
         self.n_games = 0  # amount of games played
 
-        self.epsilon = 100  # randomness
+        self.epsilon = 500  # randomness
         self.record = 0  # highest score
         self.total_score = 0  # overall score
         self.score = 0  # per game
@@ -28,6 +31,11 @@ class agent:
         self.scores = []
         self.mean_scores = []
 
+        self._vision_type = VISION_8
+        self._vision: List[Vision] = [None] * len(self._vision_type)
+        self.vision_as_array = [0] * len(self._vision_type) * 3
+        self.apple_and_self_vision = 'binary'
+
         self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         self.accent_color = tint_color(self.color, 50)  # tint by 50 for accent color
 
@@ -37,6 +45,8 @@ class agent:
 
         # inittialize the snake
         self.direction = Direction.RIGHT
+        self.tailInfo = False
+        self.tailDirection = Direction.RIGHT
 
         self.head = Point(self.board_width / 2, self.board_height / 2)
         self.snake = [self.head,
@@ -45,6 +55,7 @@ class agent:
 
     def reset(self):
         self.direction = Direction.RIGHT
+        self.tailDirection = Direction.RIGHT
         self.isDead = False
         self.TimeNotEaten = 0
         self.head = Point(self.board_width / 2, self.board_height / 2)
@@ -53,8 +64,9 @@ class agent:
                       Point(self.head.x - (2 * self.BLOCK_SIZE), self.head.y)]
 
         self.score = 0
+        self.food = None
 
-    def is_collision(self, pt=None):
+    def is_collision(self, pt=None) -> bool:
         if pt is None:
             pt = self.head
         # hits boundary
@@ -66,61 +78,91 @@ class agent:
 
         return False
 
+    def _wall_collision(self, pt):
+        # hits boundary
+        if pt.x > self.board_width - self.BLOCK_SIZE or pt.x < 0 or pt.y > self.board_height - self.BLOCK_SIZE or pt.y < 0:
+            return True
+
+        return False
+
+    # def get_state(self):
+    #     head = self.snake[0]
+    #     point_l = Point(head.x - 20, head.y)
+    #     point_r = Point(head.x + 20, head.y)
+    #     point_u = Point(head.x, head.y - 20)
+    #     point_d = Point(head.x, head.y + 20)
+    #
+    #     dir_l = self.direction == Direction.LEFT
+    #     dir_r = self.direction == Direction.RIGHT
+    #     dir_u = self.direction == Direction.UP
+    #     dir_d = self.direction == Direction.DOWN
+    #
+    #     if self.food is not None:
+    #         food_left = self.food.x < head.x  # food left
+    #         food_right = self.food.x > head.x  # food right
+    #         food_up = self.food.y < head.y  # food up
+    #         food_down = self.food.y > head.y  # food down
+    #     else:
+    #         food_left = False
+    #         food_right = False
+    #         food_up = False
+    #         food_down = False
+    #
+    #     state = [
+    #         # Danger straight
+    #         (dir_r and self.is_collision(point_r)) or
+    #         (dir_l and self.is_collision(point_l)) or
+    #         (dir_u and self.is_collision(point_u)) or
+    #         (dir_d and self.is_collision(point_d)),
+    #
+    #         # Danger right
+    #         (dir_u and self.is_collision(point_r)) or
+    #         (dir_d and self.is_collision(point_l)) or
+    #         (dir_l and self.is_collision(point_u)) or
+    #         (dir_r and self.is_collision(point_d)),
+    #
+    #         # Danger left
+    #         (dir_d and self.is_collision(point_r)) or
+    #         (dir_u and self.is_collision(point_l)) or
+    #         (dir_r and self.is_collision(point_u)) or
+    #         (dir_l and self.is_collision(point_d)),
+    #
+    #         # Move direction
+    #         dir_l,
+    #         dir_r,
+    #         dir_u,
+    #         dir_d,
+    #
+    #         # Food location
+    #         food_left,
+    #         food_right,
+    #         food_up,
+    #         food_down,
+    #     ]
+    #
+    #     if self.tailInfo:
+    #         state.append(self.tailDirection == Direction.LEFT)
+    #         state.append(self.tailDirection == Direction.RIGHT)
+    #         state.append(self.tailDirection == Direction.UP)
+    #         state.append(self.tailDirection == Direction.DOWN)
+    #
+    #     return np.array(state, dtype=int)
+
     def get_state(self):
-        head = self.snake[0]
-        point_l = Point(head.x - 20, head.y)
-        point_r = Point(head.x + 20, head.y)
-        point_u = Point(head.x, head.y - 20)
-        point_d = Point(head.x, head.y + 20)
-
-        dir_l = self.direction == Direction.LEFT
-        dir_r = self.direction == Direction.RIGHT
-        dir_u = self.direction == Direction.UP
-        dir_d = self.direction == Direction.DOWN
-
-        if self.food is not None:
-            food_left = self.food.x < head.x  # food left
-            food_right = self.food.x > head.x  # food right
-            food_up = self.food.y < head.y  # food up
-            food_down = self.food.y > head.y  # food down
-        else:
-            food_left = False
-            food_right = False
-            food_up = False
-            food_down = False
-
-        state = [
-            # Danger straight
-            (dir_r and self.is_collision(point_r)) or
-            (dir_l and self.is_collision(point_l)) or
-            (dir_u and self.is_collision(point_u)) or
-            (dir_d and self.is_collision(point_d)),
-
-            # Danger right
-            (dir_u and self.is_collision(point_r)) or
-            (dir_d and self.is_collision(point_l)) or
-            (dir_l and self.is_collision(point_u)) or
-            (dir_r and self.is_collision(point_d)),
-
-            # Danger left
-            (dir_d and self.is_collision(point_r)) or
-            (dir_u and self.is_collision(point_l)) or
-            (dir_r and self.is_collision(point_u)) or
-            (dir_l and self.is_collision(point_d)),
-
-            # Move direction
-            dir_l,
-            dir_r,
-            dir_u,
-            dir_d,
-
-            # Food location
-            food_left,
-            food_right,
-            food_up,
-            food_down,
-        ]
-
+        state = []
+        self.look()
+        for i, value in enumerate(self.vision_as_array):
+            state.append(self.vision_as_array[i])
+        #tail dirrection
+        state.append(self.tailDirection == Direction.LEFT)
+        state.append(self.tailDirection == Direction.RIGHT)
+        state.append(self.tailDirection == Direction.UP)
+        state.append(self.tailDirection == Direction.DOWN)
+        # snake direction
+        state.append(self.direction == Direction.LEFT)
+        state.append(self.direction == Direction.RIGHT)
+        state.append(self.direction == Direction.UP)
+        state.append(self.direction == Direction.DOWN)
         return np.array(state, dtype=int)
 
     def _move(self, action):
@@ -139,6 +181,8 @@ class agent:
                 new_dir = clock_wise[next_idx]  # left turn r -> u -> l -> d
 
             self.direction = new_dir
+            self.tailDirection = self.get_tail_direction()
+            # print('tailDirection: ' + str(self.tailDirection))
 
             x = self.head.x
             y = self.head.y
@@ -153,3 +197,82 @@ class agent:
 
             self.head = Point(x, y)
 
+    def get_tail_direction(self):
+        p2 = self.snake[-2]
+        p1 = self.snake[-1]
+        diffx = p2.x - p1.x
+        diffy = p2.y - p1.y
+        if diffx < 0:
+            return Direction.LEFT
+        elif diffx > 0:
+            return Direction.RIGHT
+        elif diffy > 0:
+            return Direction.DOWN
+        elif diffy < 0:
+            return Direction.UP
+
+    def isInBody(self, point) -> bool:
+        return point in self.snake
+
+    def _vision_as_input_array(self) -> None:
+        # Update the input array
+        # Split _vision into np array where rows [0-2] are _vision[0].dist_to_wall, _vision[0].dist_to_apple, _vision[0].dist_to_self,
+        # rows [3-5] are _vision[1].dist_to_wall, _vision[1].dist_to_apple, _vision[1].dist_to_self, etc. etc. etc.
+        for i, value in enumerate(self._vision):
+            self.vision_as_array[i * 3] = value.dist_to_wall
+            self.vision_as_array[i * 3 + 1] = value.dist_to_apple
+            self.vision_as_array[i * 3 + 2] = value.dist_to_self
+
+
+    def look(self):
+        # Look all around
+        for i, slope in enumerate(self._vision_type):
+            vision = self.look_in_direction(slope)
+            self._vision[i] = vision
+
+        # Update the input array
+        self._vision_as_input_array()
+    def look_in_direction(self, slope: Slope):
+        dist_to_wall = None
+        dist_to_apple = np.inf
+        dist_to_self = np.inf
+
+        wall_location = None
+        apple_location = None
+        self_location = None
+
+        # position = self.snake[0].copy()
+        position = Point(self.snake[0].x, self.snake[0].y)
+        distance = 1.0
+        total_distance = 0.0
+
+        # Can't start by looking at yourself
+        position.x += slope.horizontal
+        position.y += slope.vertical
+        total_distance += distance
+        body_found = False  # Only need to find the first occurance since it's the closest
+        food_found = False
+        while not self._wall_collision(position):
+            if not body_found and self.isInBody(position):
+                body_found = True
+                self_location = position
+            if not food_found and self.food is not None and position == self.food:
+                food_found = True
+                apple_location = position
+
+            position.x += slope.horizontal
+            position.y += slope.vertical
+            total_distance += distance
+        assert (total_distance != 0.0)
+
+        dist_to_wall = 1.0 / total_distance
+        if self.apple_and_self_vision == 'binary':
+            dist_to_apple = 1.0 if dist_to_apple != np.inf else 0.0
+            dist_to_self = 1.0 if dist_to_self != np.inf else 0.0
+
+        elif self.apple_and_self_vision == 'distance':
+            dist_to_apple = 1.0 / dist_to_apple
+            dist_to_self = 1.0 / dist_to_self
+
+        vision = Vision(dist_to_wall, dist_to_apple, dist_to_self)
+        return vision

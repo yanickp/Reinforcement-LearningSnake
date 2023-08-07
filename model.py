@@ -53,11 +53,12 @@ class Linear_QNet(nn.Module):
 
 
 class QTrainer:
-    def __init__(self, model, lr, gamma):
+    def __init__(self, model, lr, gamma, targetNetwork=True):
         self.lr = lr
         self.gamma = gamma
         self.model = model
         self.target_model = model
+        self.targetNetwork = targetNetwork
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -89,8 +90,10 @@ class QTrainer:
         for idx in range(len(done)):
             Q_new = reward[idx]
             if not done[idx]:
-                Q_new = reward[idx] + self.gamma * torch.max(self.target_model(next_state[idx]))
-
+                if self.targetNetwork:
+                    Q_new = reward[idx] + self.gamma * torch.max(self.target_model(next_state[idx]))
+                else:
+                    Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
             target[idx][torch.argmax(action[idx]).item()] = Q_new
 
         # 2: Q_new = r + y * max(next_predicted Q value) -> only do this if not done

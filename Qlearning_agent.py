@@ -8,20 +8,22 @@ from helper import plot, tint_color
 import threading
 import agentParent as AgentParent
 
-MAX_MEMORY = 100_000
-BATCH_SIZE = 1000
+MAX_MEMORY = 500_000
+BATCH_SIZE = 5000
 LR = 0.001
 
 
 class QLearningAgent(AgentParent.agent):
 
-    def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256]):
+    def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256], targetNetwork=True, inputSize=11):
         super().__init__(board_width, board_height, block_size, name)
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
         self.layers = layers
-        self.model = Linear_QNet(11, layers, 3)
-        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
+        self.inputSize = inputSize
+
+        self.model = Linear_QNet(self.inputSize, layers, 3)
+        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma, targetNetwork=targetNetwork)
 
     def loadBrain(self, path):
         self.loadedModel = True

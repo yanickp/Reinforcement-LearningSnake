@@ -26,7 +26,7 @@ BLOCK_SIZE = 20
 
 class SnakeGameAI:
 
-    def __init__(self, w=1200, h=680, uniqueFood=False):
+    def __init__(self, w=1200, h=680, uniqueFood=False, headless=False, speed=4000):
         self.w = w
         self.h = h
         # init display
@@ -36,7 +36,8 @@ class SnakeGameAI:
         self.clock = pygame.time.Clock()
         self.timesReset = 0
         self.foodAge = 0
-        self.speed = 8000
+        self.speed = speed
+        self.headless = headless
 
         self.agents = []
         self.fps = deque(maxlen=1000)
@@ -47,7 +48,7 @@ class SnakeGameAI:
         for agent in self.agents:
             agent.reset()
 
-        self.food = None
+        self._place_food()
         self.timesReset += 1
 
         self._place_food()
@@ -57,7 +58,7 @@ class SnakeGameAI:
         centerX = self.w // 2
         centerY = self.h // 2
 
-        if self.timesReset < 300:
+        if self.timesReset < 150:
             # Calculate the offset based on the number of times reset
             offset_blocks = self.timesReset // 50
 
@@ -101,7 +102,7 @@ class SnakeGameAI:
         self.foodAge += 1
         agent.TimeNotEaten += 1
 
-        if agent.TimeNotEaten > 100 * len(agent.snake):  # and self.timesReset < 300:
+        if agent.TimeNotEaten > 300 * len(agent.snake):  # and self.timesReset < 300:
             # print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
@@ -135,11 +136,9 @@ class SnakeGameAI:
             agent.snake.pop()
 
         # 5. update ui and clock
-        self._update_ui()
-        # if self.timesReset > 100:
-        #     self.clock.tick(50)
-        # else:
-        self.clock.tick(self.speed)
+        if not self.headless:
+            self._update_ui()
+            self.clock.tick(self.speed)
         # 6. return game over and score
         return reward, game_over, agent.score
 
@@ -147,12 +146,18 @@ class SnakeGameAI:
         self.display.fill(BLACK)
 
         for index, agent in enumerate(self.agents):
+            # draw snake
+            # pygame.draw.line(self.display, agent.color, agent.head, (0, agent.head.y))  # left
+            # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, 0))  # top
+            # pygame.draw.line(self.display, agent.color, agent.head, (self.w, agent.head.y))  # right
+            # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, self.h))  # bottom
+            # agent.get_distance_from_head_to(Point(0, agent.head.y))
             for pt in agent.snake:
                 pygame.draw.rect(self.display, agent.color, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
                 pygame.draw.rect(self.display, agent.accent_color, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
 
-            text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " avg: " + str(
-                round(agent.total_score / max(agent.n_games, 1), 2)) + " hs: " + str(agent.record), True, agent.color)
+            text = font.render(str(agent.name) + "'s score: " + str(agent.score) + " hs: " + str(agent.record), True,
+                               agent.color)
 
             self.display.blit(text, [0, 20 * (index + 1)])
         self.display.blit(
@@ -167,6 +172,7 @@ class SnakeGameAI:
         # draw rectangle for posible food locations
         self.fps.append(self.clock.get_fps())  # add to fps list max len 1000
         pygame.display.flip()
+
 
     def printScores(self):
         for agent in self.agents:
@@ -185,17 +191,15 @@ class SnakeGameAI:
 
 
 def runTraining():
-    game = SnakeGameAI(w=1000, h=1000, uniqueFood=True)
+    game = SnakeGameAI(w=800, h=800, uniqueFood=True,
+                       headless=False, speed=80000)  # uniqueFood means if they all fight for the same food or not, headless means no UI so faster training
     gameoverCount = 0
 
-    # game.addDeepQagent("deepQ 128", layers=[128])
-    game.addDeepQagent("deepQ 256", layers=[256])
-    # game.addDeepQagent("deepQ 512", layers=[512])
-    # game.addDeepQagent("deepQ 128, 128", layers=[128, 128])
-    # game.addDeepQagent("deepQ 256, 256", layers=[256, 256])
-    # game.addDeepQagent("deepQ 512, 512", layers=[512, 512])
-    game.addAgent("vanilla Q")
+    deepQ = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision", layers=[256, 128], inputSize=32)
+    game.agents.append(deepQ)
+    
 
+    game.reset()
     while True:
         gameoverCount = 0
         # game._update_ui()
