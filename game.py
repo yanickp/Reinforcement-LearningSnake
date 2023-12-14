@@ -58,7 +58,7 @@ class SnakeGameAI:
         centerX = self.w // 2
         centerY = self.h // 2
 
-        if self.timesReset < 150:
+        if self.timesReset < 1000:
             # Calculate the offset based on the number of times reset
             offset_blocks = self.timesReset // 50
 
@@ -102,8 +102,18 @@ class SnakeGameAI:
         self.frame_iteration += 1
         self.foodAge += 1
         agent.TimeNotEaten += 1
+        reward = 0
+        if action == agent.previous_action:
+            agent.repeated_count += 1
+            # print("Agent " + str(agent.name) + " repeated action " + str(agent.repeated_count) + " times")
+        else:
+            agent.repeated_count = 0
 
-        if agent.TimeNotEaten > 300 * len(agent.snake):  # and self.timesReset < 300:
+        agent.previous_action = action
+        repetative_penalty = -0.5 * agent.repeated_count
+        reward += repetative_penalty
+
+        if agent.TimeNotEaten > 50 * len(agent.snake):  # and self.timesReset < 300:
             # print("Agent " + str(agent.name) + " died of starvation")
             return -10, True, agent.score
 
@@ -118,8 +128,12 @@ class SnakeGameAI:
         agent.snake.insert(0, agent.head)
         agent.TimeNotEaten += 1
 
-        #update the vision
+        # update the vision
         agent.look()
+        if agent.sees_food:
+            reward += 1
+        else:
+            reward -= 0.5
 
         # 3. check if game over
         reward = 0
@@ -130,7 +144,7 @@ class SnakeGameAI:
             return reward, game_over, agent.score
 
         # 4. place new food or just move
-        if int(agent.head.x) == int(agent.food.x) and int(agent.head.y) == int(agent.food.y):
+        if agent.head == agent.food:
             agent.score += 1
             agent.TimeNotEaten = 0
             reward = 10
@@ -152,11 +166,12 @@ class SnakeGameAI:
 
         for index, agent in enumerate(self.agents):
             # draw snake
-            for point, color in agent.drawable_visions:
-                pointX, pointY = point
-                pointX += BLOCK_SIZE / 2
-                pointY += BLOCK_SIZE / 2
-                pygame.draw.line(self.display, color, (agent.head.x + BLOCK_SIZE / 2, agent.head.y + BLOCK_SIZE / 2), (pointX, pointY)) # left
+            # for point, color in agent.drawable_visions: # draw vision lines
+            #     pointX, pointY = point
+            #     pointX += BLOCK_SIZE / 2
+            #     pointY += BLOCK_SIZE / 2
+            #     pygame.draw.line(self.display, color, (agent.head.x + BLOCK_SIZE / 2, agent.head.y + BLOCK_SIZE / 2),
+            #                      (pointX, pointY))  # left
             # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, 0))  # top
             # pygame.draw.line(self.display, agent.color, agent.head, (self.w, agent.head.y))  # right
             # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, self.h))  # bottom
@@ -182,7 +197,6 @@ class SnakeGameAI:
         self.fps.append(self.clock.get_fps())  # add to fps list max len 1000
         pygame.display.flip()
 
-
     def printScores(self):
         for agent in self.agents:
             print("Agent " + str(agent.name) + " score: " + str(agent.score) + " record: " + str(
@@ -200,15 +214,28 @@ class SnakeGameAI:
 
 
 def runTraining():
-    game = SnakeGameAI(w=600, h=600, uniqueFood=True,
-                       headless=False, speed=2)  # uniqueFood means if they all fight for the same food or not, headless means no UI so faster training
+    game = SnakeGameAI(w=1200, h=1000, uniqueFood=True,
+                       headless=False,
+                       speed=10000000)  # uniqueFood means if they all fight for the same food or not, headless means no UI so faster training
     gameoverCount = 0
 
-    deepQ = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision", layers=[20, 12], inputSize=20)
-    game.agents.append(deepQ)
+    # test = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vis2012New", layers=[20, 12], inputSize=20)
+    # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vis128New", layers=[128], inputSize=20)
+    # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="Tail", layers=[256], inputSize=15)
+    # test1.tailInfo = True
+    test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.99 gama", layers=[128], inputSize=11)
+    test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.95 gama", layers=[128], inputSize=11)
+    test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.8 gama", layers=[128], inputSize=11)
+    test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.6 gama", layers=[128], inputSize=11)
+    # game.addAgents(3)
+    # test.LR = 0.01
+    # test = Agent_valilla(game.w, game.h, BLOCK_SIZE, name="valillaVision")
+    game.agents.append(test1)
+    game.agents.append(test2)
+    game.agents.append(test3)
+    game.agents.append(test4)
 
-
-    game.reset()
+    game.reset() # start the game
     while True:
         gameoverCount = 0
         # game._update_ui()
@@ -227,7 +254,8 @@ def runTraining():
             if gameoverCount >= len(game.agents):
                 # game.printScores()
                 gameoverCount = 0
-                # helper.plotAllMean(game.agents)
+                if game.timesReset % 1 == 0:
+                    helper.plotAllMean(game.agents)
                 # helper.plotFps(game.fps)
                 game.reset()
 

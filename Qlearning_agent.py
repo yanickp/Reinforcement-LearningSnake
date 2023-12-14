@@ -8,16 +8,17 @@ from helper import plot, tint_color
 import threading
 import agentParent as AgentParent
 
-MAX_MEMORY = 500_000
-BATCH_SIZE = 5000
-LR = 0.001
+MAX_MEMORY = 10_000
+BATCH_SIZE = 1_000
+LR = 0.01 # todo optimize this parameter
 
 
 class QLearningAgent(AgentParent.agent):
 
-    def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256], targetNetwork=True, inputSize=11):
+    def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256], targetNetwork=True,
+                 inputSize=11):
         super().__init__(board_width, board_height, block_size, name)
-        self.gamma = 0.9  # discount rate
+        self.gamma = 0.99  # discount rate #todo optimize this parameter
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
         self.layers = layers
         self.inputSize = inputSize
@@ -49,12 +50,24 @@ class QLearningAgent(AgentParent.agent):
     def get_action(self, state):
         final_move = [0, 0, 0]
         # random moves: tradeoff exploration / exploitation
+
         if random.random() < max(0.0, 1 - self.n_games / self.epsilon) and not self.loadedModel:
             # Random exploration
             move = random.randint(0, 2)
             final_move[move] = 1
+        # elif self.n_games % 2 == 0 and not self.loadedModel:
+        #     # Random exploration
+        #     print("Using model 30%")
+        #     move = random.randint(0, 2)
+        #     if move == random.randint(0, 2):
+        #         state0 = torch.tensor(state, dtype=torch.float)
+        #         prediction = self.model(state0)
+        #         move = torch.argmax(prediction).item()
+        #         final_move[move] = 1
+        #     final_move[move] = 1
         else:
             # Exploitation using the model's prediction
+            # print("Using model")
             state0 = torch.tensor(state, dtype=torch.float)
             prediction = self.model(state0)
             move = torch.argmax(prediction).item()
@@ -88,8 +101,8 @@ class QLearningAgent(AgentParent.agent):
                 self.n_games += 1
                 self.isDead = True
                 self.train_long_memory()
-                if self.n_games % 5 == 0:
-                    self.trainer.update_target()
+                # if self.n_games % 1 == 0:
+                self.trainer.update_target()
                 self.scores.append(score)
                 self.mean_scores.append(np.mean(self.scores[-50:]))
                 if score > self.record:
