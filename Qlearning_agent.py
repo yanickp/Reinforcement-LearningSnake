@@ -16,7 +16,7 @@ LR = 0.01 # todo optimize this parameter
 class QLearningAgent(AgentParent.agent):
 
     def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256], targetNetwork=True,
-                 inputSize=11):
+                 inputSize=11, lr=LR):
         super().__init__(board_width, board_height, block_size, name)
         self.gamma = 0.99  # discount rate #todo optimize this parameter
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
@@ -24,7 +24,7 @@ class QLearningAgent(AgentParent.agent):
         self.inputSize = inputSize
 
         self.model = Linear_QNet(self.inputSize, layers, 3)
-        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma, targetNetwork=targetNetwork)
+        self.trainer = QTrainer(self.model, lr=lr, gamma=self.gamma, targetNetwork=targetNetwork)
 
     def loadBrain(self, path):
         self.loadedModel = True

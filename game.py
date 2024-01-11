@@ -58,9 +58,9 @@ class SnakeGameAI:
         centerX = self.w // 2
         centerY = self.h // 2
 
-        if self.timesReset < 1000:
+        if self.timesReset < 1500:
             # Calculate the offset based on the number of times reset
-            offset_blocks = self.timesReset // 50
+            offset_blocks = self.timesReset // 500
 
             # Limit the offset to 3 blocks initially and increase it by 1 block every 20 times reset
             offset_blocks = max(offset_blocks, 3)
@@ -110,8 +110,8 @@ class SnakeGameAI:
             agent.repeated_count = 0
 
         agent.previous_action = action
-        repetative_penalty = -0.5 * agent.repeated_count
-        reward += repetative_penalty
+        # repetative_penalty = -0.5 * agent.repeated_count
+        # reward += repetative_penalty
 
         if agent.TimeNotEaten > 50 * len(agent.snake):  # and self.timesReset < 300:
             # print("Agent " + str(agent.name) + " died of starvation")
@@ -129,14 +129,13 @@ class SnakeGameAI:
         agent.TimeNotEaten += 1
 
         # update the vision
-        agent.look()
+        # agent.look() may not be neccesery
         if agent.sees_food:
             reward += 1
-        else:
-            reward -= 0.5
+
 
         # 3. check if game over
-        reward = 0
+        # reward = 0
         game_over = False
         if agent.is_collision():
             game_over = True
@@ -214,7 +213,7 @@ class SnakeGameAI:
 
 
 def runTraining():
-    game = SnakeGameAI(w=1200, h=1000, uniqueFood=True,
+    game = SnakeGameAI(w=400, h=400, uniqueFood=True,
                        headless=False,
                        speed=10000000)  # uniqueFood means if they all fight for the same food or not, headless means no UI so faster training
     gameoverCount = 0
@@ -224,14 +223,20 @@ def runTraining():
     # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="Tail", layers=[256], inputSize=15)
     # test1.tailInfo = True
     test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 128", layers=[128], inputSize=20)
-    test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 64", layers=[64], inputSize=20)
+    # test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 64", layers=[64], inputSize=20)
+    # test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 64 no target network", layers=[64], inputSize=20, targetNetwork=False)
+    # test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 12", layers=[12], inputSize=20, lr=0.2)
+
     # test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.8 gama", layers=[128], inputSize=11)
     # test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.6 gama", layers=[128], inputSize=11)
-    game.addAgents(3)
+    # game.addAgents(1)
     # test.LR = 0.01
     # test = Agent_valilla(game.w, game.h, BLOCK_SIZE, name="valillaVision")
     game.agents.append(test1)
-    game.agents.append(test2)
+    # game.agents.append(test2)
+    # game.agents.append(test3)
+    # game.agents.append(test4)
+    # game.agents.append(test2)
 
     game.reset() # start the game
     while True:

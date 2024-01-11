@@ -16,7 +16,7 @@ class agent:
     def __init__(self, board_width, board_height, block_size, name):
         self.n_games = 0  # amount of games played
 
-        self.epsilon = 1500  # randomness
+        self.epsilon = 1000  # randomness
         self.record = 0  # highest score
         self.total_score = 0  # overall score
         self.score = 0  # per game
