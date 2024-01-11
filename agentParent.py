@@ -95,86 +95,86 @@ class agent:
 
         return False
 
-    def get_state(self):
-        head = self.snake[0]
-        point_l = Point(head.x - 20, head.y)
-        point_r = Point(head.x + 20, head.y)
-        point_u = Point(head.x, head.y - 20)
-        point_d = Point(head.x, head.y + 20)
-
-        dir_l = self.direction == Direction.LEFT
-        dir_r = self.direction == Direction.RIGHT
-        dir_u = self.direction == Direction.UP
-        dir_d = self.direction == Direction.DOWN
-
-        if self.food is not None:
-            food_left = self.food.x < head.x  # food left
-            food_right = self.food.x > head.x  # food right
-            food_up = self.food.y < head.y  # food up
-            food_down = self.food.y > head.y  # food down
-        else:
-            food_left = False
-            food_right = False
-            food_up = False
-            food_down = False
-
-        state = [
-            # Danger straight
-            (dir_r and self.is_collision(point_r)) or
-            (dir_l and self.is_collision(point_l)) or
-            (dir_u and self.is_collision(point_u)) or
-            (dir_d and self.is_collision(point_d)),
-
-            # Danger right
-            (dir_u and self.is_collision(point_r)) or
-            (dir_d and self.is_collision(point_l)) or
-            (dir_l and self.is_collision(point_u)) or
-            (dir_r and self.is_collision(point_d)),
-
-            # Danger left
-            (dir_d and self.is_collision(point_r)) or
-            (dir_u and self.is_collision(point_l)) or
-            (dir_r and self.is_collision(point_u)) or
-            (dir_l and self.is_collision(point_d)),
-
-            # Move direction
-            dir_l,
-            dir_r,
-            dir_u,
-            dir_d,
-
-            # Food location
-            food_left,
-            food_right,
-            food_up,
-            food_down,
-        ]
-
-        if self.tailInfo:
-            state.append(self.tailDirection == Direction.LEFT)
-            state.append(self.tailDirection == Direction.RIGHT)
-            state.append(self.tailDirection == Direction.UP)
-            state.append(self.tailDirection == Direction.DOWN)
-
-        return np.array(state, dtype=int)
-
     # def get_state(self):
-    #     state = []
-    #     tailDR = self.get_tail_direction()
-    #     self.look()
-    #     for i, value in enumerate(self.vision_as_array):
-    #         state.append(self.vision_as_array[i])
-    #     # tail dirrection
-    #     state.append(tailDR == Direction.LEFT)
-    #     state.append(tailDR == Direction.RIGHT)
-    #     state.append(tailDR == Direction.UP)
-    #     state.append(tailDR == Direction.DOWN)
-    #     # snake direction
-    #     state.append(self.direction == Direction.LEFT)
-    #     state.append(self.direction == Direction.RIGHT)
-    #     state.append(self.direction == Direction.UP)
-    #     state.append(self.direction == Direction.DOWN)
-    #     return np.array(state, dtype=float)
+    #     head = self.snake[0]
+    #     point_l = Point(head.x - 20, head.y)
+    #     point_r = Point(head.x + 20, head.y)
+    #     point_u = Point(head.x, head.y - 20)
+    #     point_d = Point(head.x, head.y + 20)
+    #
+    #     dir_l = self.direction == Direction.LEFT
+    #     dir_r = self.direction == Direction.RIGHT
+    #     dir_u = self.direction == Direction.UP
+    #     dir_d = self.direction == Direction.DOWN
+    #
+    #     if self.food is not None:
+    #         food_left = self.food.x < head.x  # food left
+    #         food_right = self.food.x > head.x  # food right
+    #         food_up = self.food.y < head.y  # food up
+    #         food_down = self.food.y > head.y  # food down
+    #     else:
+    #         food_left = False
+    #         food_right = False
+    #         food_up = False
+    #         food_down = False
+    #
+    #     state = [
+    #         # Danger straight
+    #         (dir_r and self.is_collision(point_r)) or
+    #         (dir_l and self.is_collision(point_l)) or
+    #         (dir_u and self.is_collision(point_u)) or
+    #         (dir_d and self.is_collision(point_d)),
+    #
+    #         # Danger right
+    #         (dir_u and self.is_collision(point_r)) or
+    #         (dir_d and self.is_collision(point_l)) or
+    #         (dir_l and self.is_collision(point_u)) or
+    #         (dir_r and self.is_collision(point_d)),
+    #
+    #         # Danger left
+    #         (dir_d and self.is_collision(point_r)) or
+    #         (dir_u and self.is_collision(point_l)) or
+    #         (dir_r and self.is_collision(point_u)) or
+    #         (dir_l and self.is_collision(point_d)),
+    #
+    #         # Move direction
+    #         dir_l,
+    #         dir_r,
+    #         dir_u,
+    #         dir_d,
+    #
+    #         # Food location
+    #         food_left,
+    #         food_right,
+    #         food_up,
+    #         food_down,
+    #     ]
+    #
+    #     if self.tailInfo:
+    #         state.append(self.tailDirection == Direction.LEFT)
+    #         state.append(self.tailDirection == Direction.RIGHT)
+    #         state.append(self.tailDirection == Direction.UP)
+    #         state.append(self.tailDirection == Direction.DOWN)
+    #
+    #     return np.array(state, dtype=int)
+
+    def get_state(self):
+        state = []
+        tailDR = self.get_tail_direction()
+        self.look()
+        for i, value in enumerate(self.vision_as_array):
+            state.append(self.vision_as_array[i])
+        # tail dirrection
+        state.append(tailDR == Direction.LEFT)
+        state.append(tailDR == Direction.RIGHT)
+        state.append(tailDR == Direction.UP)
+        state.append(tailDR == Direction.DOWN)
+        # snake direction
+        state.append(self.direction == Direction.LEFT)
+        state.append(self.direction == Direction.RIGHT)
+        state.append(self.direction == Direction.UP)
+        state.append(self.direction == Direction.DOWN)
+        return np.array(state, dtype=float)
 
     def _move(self, action):
         # [straight, right, left]
@@ -239,6 +239,8 @@ class agent:
             self.vision_as_array[i * 3] = value.dist_to_wall
             self.vision_as_array[i * 3 + 1] = value.dist_to_apple
             self.vision_as_array[i * 3 + 2] = value.dist_to_self
+        # normalize the self.vision_as_array
+        # self.vision_as_array = (self.vision_as_array - np.mean(self.vision_as_array)) / np.std(self.vision_as_array)
 
     def look(self):
         # Look all around
@@ -246,7 +248,9 @@ class agent:
         self.sees_food = False
         for i, slope in enumerate(self._vision_type):
             vision = self.look_in_direction(slope)
-            if vision.dist_to_apple < np.inf:
+            if vision.dist_to_apple < np.inf and self.apple_and_self_vision != 'binary':
+                self.sees_food = True
+            if vision.dist_to_apple == 1 and self.apple_and_self_vision == 'binary':
                 self.sees_food = True
             self._vision[i] = vision
 

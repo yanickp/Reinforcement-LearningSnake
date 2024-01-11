@@ -166,12 +166,12 @@ class SnakeGameAI:
 
         for index, agent in enumerate(self.agents):
             # draw snake
-            # for point, color in agent.drawable_visions: # draw vision lines
-            #     pointX, pointY = point
-            #     pointX += BLOCK_SIZE / 2
-            #     pointY += BLOCK_SIZE / 2
-            #     pygame.draw.line(self.display, color, (agent.head.x + BLOCK_SIZE / 2, agent.head.y + BLOCK_SIZE / 2),
-            #                      (pointX, pointY))  # left
+            for point, color in agent.drawable_visions: # draw vision lines
+                pointX, pointY = point
+                pointX += BLOCK_SIZE / 2
+                pointY += BLOCK_SIZE / 2
+                pygame.draw.line(self.display, color, (agent.head.x + BLOCK_SIZE / 2, agent.head.y + BLOCK_SIZE / 2),
+                                 (pointX, pointY))  # left
             # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, 0))  # top
             # pygame.draw.line(self.display, agent.color, agent.head, (self.w, agent.head.y))  # right
             # pygame.draw.line(self.display, agent.color, agent.head, (agent.head.x, self.h))  # bottom
@@ -223,17 +223,15 @@ def runTraining():
     # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vis128New", layers=[128], inputSize=20)
     # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="Tail", layers=[256], inputSize=15)
     # test1.tailInfo = True
-    test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.99 gama", layers=[128], inputSize=11)
-    test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.95 gama", layers=[128], inputSize=11)
-    test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.8 gama", layers=[128], inputSize=11)
-    test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.6 gama", layers=[128], inputSize=11)
-    # game.addAgents(3)
+    test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 128", layers=[128], inputSize=20)
+    test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 64", layers=[64], inputSize=20)
+    # test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.8 gama", layers=[128], inputSize=11)
+    # test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.6 gama", layers=[128], inputSize=11)
+    game.addAgents(3)
     # test.LR = 0.01
     # test = Agent_valilla(game.w, game.h, BLOCK_SIZE, name="valillaVision")
     game.agents.append(test1)
     game.agents.append(test2)
-    game.agents.append(test3)
-    game.agents.append(test4)
 
     game.reset() # start the game
     while True:
