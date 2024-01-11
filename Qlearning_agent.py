@@ -7,6 +7,8 @@ from model import Linear_QNet, QTrainer
 from helper import plot, tint_color
 import threading
 import agentParent as AgentParent
+from pytorch_model_summary import summary
+
 
 MAX_MEMORY = 10_000
 BATCH_SIZE = 1_000
@@ -25,6 +27,8 @@ class QLearningAgent(AgentParent.agent):
 
         self.model = Linear_QNet(self.inputSize, layers, 3)
         self.trainer = QTrainer(self.model, lr=lr, gamma=self.gamma, targetNetwork=targetNetwork)
+        # print('==== summary ====')
+        # summary(self.model.to("cpu"), torch.tensor(self.get_state()))
 
     def loadBrain(self, path):
         self.loadedModel = True
