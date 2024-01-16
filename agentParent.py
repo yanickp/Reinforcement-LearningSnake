@@ -16,7 +16,7 @@ class agent:
     def __init__(self, board_width, board_height, block_size, name):
         self.n_games = 0  # amount of games played
 
-        self.epsilon = 500  # randomness
+        self.epsilon = 1000  # randomness
         self.record = 0  # highest score
         self.total_score = 0  # overall score
         self.score = 0  # per game
@@ -40,6 +40,7 @@ class agent:
         self._vision: List[Vision] = [None] * len(self._vision_type)
         self.vision_as_array = [0] * len(self._vision_type) * 3
         self.apple_and_self_vision = 'binary'
+        self.stateType = 'vision'  # vision or basic
 
         self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         self.accent_color = tint_color(self.color, 50)  # tint by 50 for accent color
@@ -96,6 +97,12 @@ class agent:
         return False
 
     def get_state(self):
+        if self.stateType == 'vision':
+            return self.get_state_vison()
+        elif self.stateType == 'basic':
+            return self.get_state_basic()
+
+    def get_state_basic(self):
         head = self.snake[0]
         point_l = Point(head.x - 20, head.y)
         point_r = Point(head.x + 20, head.y)
@@ -159,23 +166,58 @@ class agent:
 
         return np.array(state, dtype=int)
 
-    # def get_state(self):
-    #     state = []
-    #     tailDR = self.get_tail_direction()
-    #     self.look()
-    #     for i, value in enumerate(self.vision_as_array):
-    #         state.append(self.vision_as_array[i])
-    #     # tail dirrection
-    #     state.append(tailDR == Direction.LEFT)
-    #     state.append(tailDR == Direction.RIGHT)
-    #     state.append(tailDR == Direction.UP)
-    #     state.append(tailDR == Direction.DOWN)
-    #     # snake direction
-    #     state.append(self.direction == Direction.LEFT)
-    #     state.append(self.direction == Direction.RIGHT)
-    #     state.append(self.direction == Direction.UP)
-    #     state.append(self.direction == Direction.DOWN)
-    #     return np.array(state, dtype=float)
+    def get_state_vison(self):
+        head = self.snake[0]
+        if self.food is not None:
+            food_left = self.food.x < head.x  # food left
+            food_right = self.food.x > head.x  # food right
+            food_up = self.food.y < head.y  # food up
+            food_down = self.food.y > head.y  # food down
+        else:
+            food_left = False
+            food_right = False
+            food_up = False
+            food_down = False
+        state = []
+        tailDR = self.get_tail_direction()
+        self.look()
+        for i, value in enumerate(self.vision_as_array):
+            state.append(self.vision_as_array[i])
+        # tail dirrection
+        state.append(tailDR == Direction.LEFT)
+        state.append(tailDR == Direction.RIGHT)
+        state.append(tailDR == Direction.UP)
+        state.append(tailDR == Direction.DOWN)
+        # snake direction
+        state.append(self.direction == Direction.LEFT)
+        state.append(self.direction == Direction.RIGHT)
+        state.append(self.direction == Direction.UP)
+        state.append(self.direction == Direction.DOWN)
+        state.append(food_left)
+        state.append(food_right)
+        state.append(food_up)
+        state.append(food_down)
+        # calculate distance to food in one value
+        state.append(self.get_distance_to_food())
+        #normalize snake length
+        normalized_snake_length = len(self.snake) / (self.board_width * self.board_height)
+        state.append(normalized_snake_length)
+
+        return np.array(state, dtype=float)
+
+    def get_distance_to_food(self):
+        head = self.snake[0]
+        if self.food is not None:
+            # distance to food on x, y axis
+            dist_x = self.food.x - head.x
+            dist_y = self.food.y - head.y
+            # calculate distance to food in one value
+            dist = math.sqrt(dist_x ** 2 + dist_y ** 2)
+            # normalize
+            dist = dist / math.sqrt(self.board_width ** 2 + self.board_height ** 2)
+        else:
+            dist = 0
+        return dist
 
     def _move(self, action):
         # [straight, right, left]
@@ -238,8 +280,8 @@ class agent:
         # rows [3-5] are _vision[1].dist_to_wall, _vision[1].dist_to_apple, _vision[1].dist_to_self, etc. etc. etc.
         for i, value in enumerate(self._vision):
             self.vision_as_array[i * 3] = value.dist_to_wall
-            self.vision_as_array[i * 3 + 1] = value.dist_to_apple
-            self.vision_as_array[i * 3 + 2] = value.dist_to_self
+            # self.vision_as_array[i * 3 + 1] = value.dist_to_apple // remove this line to make the snake not see the apple
+            self.vision_as_array[i * 3 + 1] = value.dist_to_self
         # normalize the self.vision_as_array
         # self.vision_as_array = (self.vision_as_array - np.mean(self.vision_as_array)) / np.std(self.vision_as_array)
 

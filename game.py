@@ -54,26 +54,22 @@ class SnakeGameAI:
         self._place_food()
         self.frame_iteration = 0
 
-    def _get_free_spot(self):
+    def _get_free_spot(self, agent):
         centerX = self.w // 2
         centerY = self.h // 2
 
-        if self.timesReset < 1500:
-            # Calculate the offset based on the number of times reset
-            offset_blocks = self.timesReset // 500
+        if self.timesReset < 400_000:
+            # place the food in a 2 block radius of the head
+            dist_from_head = (self.timesReset // 500) + 2 # every 500 resets, increase the distance by 1
+            head = agent.snake[0]
 
-            # Limit the offset to 3 blocks initially and increase it by 1 block every 20 times reset
-            offset_blocks = max(offset_blocks, 3)
+            # Generate random offsets within a 2-block radius
+            offset_x = random.randint(-dist_from_head, dist_from_head) * BLOCK_SIZE
+            offset_y = random.randint(-dist_from_head, dist_from_head) * BLOCK_SIZE
 
-            # Calculate the range for spawning the food
-            min_x = centerX - (3 + offset_blocks) * BLOCK_SIZE
-            max_x = centerX + (3 + offset_blocks) * BLOCK_SIZE
-            min_y = centerY - (3 + offset_blocks) * BLOCK_SIZE
-            max_y = centerY + (3 + offset_blocks) * BLOCK_SIZE
-
-            # Have food spawn in a random location within the calculated range
-            x = random.randint(min_x // BLOCK_SIZE, max_x // BLOCK_SIZE) * BLOCK_SIZE
-            y = random.randint(min_y // BLOCK_SIZE, max_y // BLOCK_SIZE) * BLOCK_SIZE
+            # Calculate the new coordinates within the grid
+            x = (head.x + offset_x) // BLOCK_SIZE * BLOCK_SIZE
+            y = (head.y + offset_y) // BLOCK_SIZE * BLOCK_SIZE
         else:
             x = random.randint(0, (self.w - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
             y = random.randint(0, (self.h - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
@@ -91,7 +87,7 @@ class SnakeGameAI:
         if self.uniqueFood:
             for agent in self.agents:
                 if agent.food is None:
-                    agent.food = self._get_free_spot()
+                    agent.food = self._get_free_spot(agent=agent)
                     # agent.food = Point(600, 680)
         else:
             freeSpot = self._get_free_spot()
@@ -110,8 +106,8 @@ class SnakeGameAI:
             agent.repeated_count = 0
 
         agent.previous_action = action
-        # repetative_penalty = -0.5 * agent.repeated_count
-        # reward += repetative_penalty
+        repetative_penalty = -0.5 * agent.repeated_count
+        reward += repetative_penalty
 
         if agent.TimeNotEaten > 50 * len(agent.snake):  # and self.timesReset < 300:
             # print("Agent " + str(agent.name) + " died of starvation")
@@ -127,12 +123,6 @@ class SnakeGameAI:
         agent._move(action)  # update the head
         agent.snake.insert(0, agent.head)
         agent.TimeNotEaten += 1
-
-        # update the vision
-        # agent.look() may not be neccesery
-        if agent.sees_food:
-            reward += 1
-
 
         # 3. check if game over
         # reward = 0
@@ -151,6 +141,7 @@ class SnakeGameAI:
             self._place_food()
         else:
             # reward = -(self._distance_to_food() / 10)
+            reward = 5 / agent.get_distance_to_food()
             agent.snake.pop()
 
         # 5. update ui and clock
@@ -222,24 +213,19 @@ def runTraining():
     # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vis128New", layers=[128], inputSize=20)
     # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="Tail", layers=[256], inputSize=15)
     # test1.tailInfo = True
-    test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="deepQ", layers=[128], inputSize=11, targetNetwork=False)
-    test5 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="deepQ1", layers=[128], inputSize=11, targetNetwork=False)
-    test6 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="deepQ2", layers=[128], inputSize=11, targetNetwork=False)
-    test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="deepQ3", layers=[128], inputSize=11, targetNetwork=False)
-    # test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 64", layers=[64], inputSize=20)
-    # test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="vision 64 no target network", layers=[64], inputSize=20, targetNetwork=False)
-    test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="targetnetwork", layers=[128], inputSize=11, targetNetwork=True)
+    # test1 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="new vis", layers=[8, 3], inputSize=26)
+    # test2 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="new vis2", layers=[64], inputSize=26)
+    # test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="new vis3", layers=[128], inputSize=26)
+    test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="new vis4", layers=[256], inputSize=26)
 
-    # test3 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.8 gama", layers=[128], inputSize=11)
-    # test4 = QLearningAgent(game.w, game.h, BLOCK_SIZE, name="0.6 gama", layers=[128], inputSize=11)
     # game.addAgents(1)
     # test.LR = 0.01
     # test = Agent_valilla(game.w, game.h, BLOCK_SIZE, name="valillaVision")
-    game.agents.append(test1)
-    game.agents.append(test2)
-    game.agents.append(test3)
-    game.agents.append(test5)
-    game.agents.append(test6)
+    # game.agents.append(test1)
+    # game.agents.append(test2)
+    # game.agents.append(test3)
+    game.agents.append(test4)
+
 
     game.reset() # start the game
     while True:

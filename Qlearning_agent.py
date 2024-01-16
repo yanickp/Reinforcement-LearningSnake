@@ -20,7 +20,7 @@ class QLearningAgent(AgentParent.agent):
     def __init__(self, board_width, board_height, block_size, name="deepQ", layers=[256], targetNetwork=True,
                  inputSize=11, lr=LR):
         super().__init__(board_width, board_height, block_size, name)
-        self.gamma = 0.99  # discount rate #todo optimize this parameter
+        self.gamma = 0.99  # discount rate todo optimize this parameter
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft()
         self.layers = layers
         self.inputSize = inputSize

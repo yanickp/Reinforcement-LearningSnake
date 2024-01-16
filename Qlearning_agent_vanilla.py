@@ -35,11 +35,14 @@ class Agent_valilla(AgentParent.agent):
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        if random.random() < max(0.0, 1 - self.n_games / self.epsilon) and not self.loadedModel:  # or change < 5:
+        if random.random() < max(0.0, 1 - self.n_games / self.epsilon) and not self.loadedModel:
             move = random.randint(0, 2)
         else:
-            state = tuple(state)
-            move = np.argmax(self.q_table.get(state, [0, 0, 0]))  # Choose the action with the highest Q-value
+            if random.random() > 0.9: # 10% of the time, make a random move
+                move = random.randint(0, 2)
+            else:
+                state = tuple(state)
+                move = np.argmax(self.q_table.get(state, [0, 0, 0]))  # Choose the action with the highest Q-value
         action_vector = [0, 0, 0]
         action_vector[move] = 1
         return action_vector
